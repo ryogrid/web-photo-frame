@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react'
 import './App.css'
-import { ChevronLeft, ChevronRight, Play, Pause } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Play, Pause, RefreshCw } from 'lucide-react'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useImageSets } from '@/lib/image-utils'
 
 function App() {
-  const { imageSets, loading, error } = useImageSets();
+  const { imageSets, loading, error, refreshImageSets, lastRefreshed } = useImageSets();
   const [currentSetIndex, setCurrentSetIndex] = useState(0);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isSlideshow, setIsSlideshow] = useState(true);
@@ -107,6 +107,13 @@ function App() {
                 {isPlaying ? <Pause size={20} /> : <Play size={20} />}
               </button>
             )}
+            <button 
+              onClick={() => refreshImageSets()} 
+              className="p-2 bg-blue-600 rounded hover:bg-blue-700 transition-colors"
+              title="Refresh photo sets"
+            >
+              <RefreshCw size={20} />
+            </button>
           </div>
         </div>
         
@@ -194,6 +201,7 @@ function App() {
       {/* Footer */}
       <footer className="p-4 bg-gray-800 text-center text-sm">
         <p>Photo Frame App - Images from Unsplash</p>
+        {lastRefreshed && <p className="text-xs text-gray-400">Last refreshed: {lastRefreshed.toLocaleTimeString()}</p>}
       </footer>
     </div>
   )
