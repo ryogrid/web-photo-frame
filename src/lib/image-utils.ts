@@ -19,7 +19,7 @@ export function useImageSets(): {
   imageSets: ImageSet[]; 
   loading: boolean; 
   error: string | null;
-  refreshImageSets: () => Promise<void>;
+  refreshImageSets: () => void;
   lastRefreshed: Date | null;
 } {
   const [imageSets, setImageSets] = useState<ImageSet[]>([]);
@@ -27,48 +27,80 @@ export function useImageSets(): {
   const [error, setError] = useState<string | null>(null);
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
   
-  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-  
   const fetchImageSets = useCallback(async () => {
     try {
       setLoading(true);
       
-      const response = await fetch(`${apiUrl}/api/photosets`);
+      const photoSetDirectories = [
+        'landscapes',
+        'animals',
+        'cities',
+        'nature'
+      ];
       
-      if (!response.ok) {
-        throw new Error(`Failed to fetch image sets: ${response.statusText}`);
+      const sets: ImageSet[] = [];
+      
+      for (const dir of photoSetDirectories) {
+        try {
+          
+          const setName = dir.charAt(0).toUpperCase() + dir.slice(1);
+          
+          const imageFiles = [
+            { name: 'image1.jpg', alt: 'Image 1' },
+            { name: 'image2.jpg', alt: 'Image 2' },
+            { name: 'image3.jpg', alt: 'Image 3' },
+            { name: 'cat1.jpg', alt: 'Cat 1' },
+            { name: 'cat2.jpg', alt: 'Cat 2' },
+            { name: 'dog1.jpg', alt: 'Dog 1' },
+            { name: 'city1.jpg', alt: 'City 1' },
+            { name: 'city2.jpg', alt: 'City 2' },
+            { name: 'city3.jpg', alt: 'City 3' },
+            { name: 'simon-berger-twukN12EN7c-unsplash.jpg', alt: 'Landscape' },
+            { name: 'bailey-zindel-NRQV-hBF10M-unsplash.jpg', alt: 'Landscape' },
+            { name: 'ken-cheung-KonWFWUaAuk-unsplash.jpg', alt: 'Landscape' }
+          ];
+          
+          const images: Image[] = [];
+          
+          for (const file of imageFiles) {
+            try {
+              const response = await fetch(`/pictures/${dir}/${file.name}`, { method: 'HEAD' });
+              if (response.ok) {
+                images.push({
+                  src: `/pictures/${dir}/${file.name}`,
+                  alt: file.alt
+                });
+              }
+            } catch (err) {
+              console.warn(`Failed to check image ${file.name} in ${dir}:`, err);
+            }
+          }
+          
+          if (images.length > 0) {
+            sets.push({
+              name: setName,
+              images
+            });
+          }
+        } catch (err) {
+          console.warn(`Failed to load images for ${dir}:`, err);
+        }
       }
       
-      const data = await response.json();
-      
-      const transformedSets = data.map((set: any) => ({
-        name: set.name,
-        images: set.images.map((image: any) => ({
-          src: `${apiUrl}${image.src}`,
-          alt: image.alt
-        }))
-      }));
-      
-      setImageSets(transformedSets);
+      setImageSets(sets);
       setLastRefreshed(new Date());
       setError(null);
     } catch (err) {
       console.error('Error loading image sets:', err);
-      setError('Failed to load image sets. Please check the API server is running.');
+      setError('Failed to load image sets.');
     } finally {
       setLoading(false);
     }
-  }, [apiUrl]);
+  }, []);
   
-  const refreshImageSets = useCallback(async () => {
-    try {
-      await fetch(`${apiUrl}/api/refresh`);
-      await fetchImageSets();
-    } catch (err) {
-      console.error('Error refreshing image sets:', err);
-      setError('Failed to refresh image sets');
-    }
-  }, [apiUrl, fetchImageSets]);
+  const refreshImageSets = useCallback(() => {
+    window.location.reload();
+  }, []);
   
   useEffect(() => {
     fetchImageSets();
