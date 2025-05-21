@@ -47,7 +47,7 @@ export function LazyImage({ src, thumbnail, alt, className, onClick }: LazyImage
   return (
     <div 
       ref={imgRef}
-      className={className}
+      className="w-full h-full"
       onClick={onClick}
     >
       {isIntersecting ? (
@@ -63,7 +63,7 @@ export function LazyImage({ src, thumbnail, alt, className, onClick }: LazyImage
           <img 
             src={imageSrc || ''} 
             alt={alt} 
-            className="w-full h-full object-cover"
+            className={className}
           />
         )
       ) : (

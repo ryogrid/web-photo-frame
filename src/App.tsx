@@ -169,6 +169,14 @@ function App() {
                   {isPlaying ? <Pause size={24} /> : <Play size={24} />}
                 </button>
                 
+                {/* View Thumbnails button - positioned in top-left in slideshow mode */}
+                <button 
+                  onClick={toggleSlideshow} 
+                  className="absolute top-4 left-4 px-3 py-2 bg-black/50 rounded hover:bg-black/70 transition-colors z-20 text-sm"
+                >
+                  View Thumbnails
+                </button>
+                
                 {/* Keep the navigation arrow buttons */}
                 <button 
                   onClick={goToPrevious} 
