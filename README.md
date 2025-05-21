@@ -1,1 +1,175 @@
-# web-photo-frame
+# Web Photo Frame
+
+A modern web-based digital photo frame application with a React frontend and an Express/Node.js backend. It supports image sets, thumbnail caching, and a slideshow or gallery view.
+
+---
+
+## Features
+
+- **Frontend**: Built with React, Vite, and Tailwind CSS.
+- **Backend**: Node.js with Express, serving images and API endpoints.
+- **Image Organization**: Images are organized into sets (folders) under `public/pictures/`.
+- **Thumbnails**: Thumbnails are stored in `public/thumbnails/` and cached in the browser using IndexedDB.
+- **Slideshow & Gallery**: Switch between slideshow and thumbnail grid views.
+- **API**: REST endpoints for image set metadata and image serving.
+- **Proxy**: Vite dev server proxies API and image requests to the backend for seamless development.
+
+---
+
+## Project Structure
+
+```
+web-photo-frame/
+├── backend/                # Backend server (Express)
+│   ├── src/
+│   │   ├── routes/         # API route handlers
+│   │   ├── server.ts       # Main server entry point
+│   │   └── ...             
+│   ├── package.json
+│   └── tsconfig.json
+├── public/
+│   ├── pictures/           # Image sets (each subfolder is a set)
+│   │   └── nature/
+│   │       └── example.jpg
+│   ├── thumbnails/         # Thumbnails (mirrors pictures structure)
+│   │   └── nature/
+│   │       └── example.jpg
+│   └── ...
+├── src/                    # Frontend source (React)
+│   ├── components/
+│   ├── lib/
+│   ├── hooks/
+│   ├── App.tsx
+│   ├── main.tsx
+│   └── ...
+├── package.json            # Frontend dependencies and scripts
+├── vite.config.ts          # Vite config (with proxy)
+└── README.md
+```
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js (v18+ recommended)
+- npm
+
+---
+
+### 1. Install Dependencies
+
+#### Frontend
+
+```bash
+npm install
+```
+
+#### Backend
+
+```bash
+cd backend
+npm install
+```
+
+---
+
+### 2. Add Your Images
+
+- Place your image sets in `public/pictures/`, each in its own subfolder (e.g., `nature`, `cities`, etc.).
+- Place corresponding thumbnails in `public/thumbnails/` with the same folder and file names as the originals.
+
+**Example:**
+```
+public/
+  pictures/
+    nature/
+      simon-berger-twukN12EN7c-unsplash.jpg
+  thumbnails/
+    nature/
+      simon-berger-twukN12EN7c-unsplash.jpg
+```
+
+---
+
+### 3. Development
+
+#### Start the Backend
+
+```bash
+cd backend
+npm run dev
+```
+- The backend runs on [http://localhost:3000](http://localhost:3000) by default.
+
+#### Start the Frontend
+
+In a separate terminal:
+
+```bash
+npm run dev
+```
+- The frontend runs on [http://localhost:5173](http://localhost:5173) by default.
+- The Vite dev server proxies `/api`, `/pictures`, and `/thumbnails` requests to the backend.
+
+---
+
+### 4. Production Build
+
+#### Build the Frontend
+
+```bash
+npm run build
+```
+- This outputs static files to the `dist/` directory.
+
+#### Build and Start the Backend
+
+```bash
+cd backend
+npm run build
+npm start
+```
+- The backend will serve the frontend from the `dist/` directory and also serve images and API endpoints.
+
+---
+
+## API Endpoints
+
+- `GET /api/image-sets-metadata`  
+  Returns metadata for all image sets and their images.
+
+- `GET /pictures/:set/:filename`  
+  Serves original images.
+
+- `GET /thumbnails/:set/:filename`  
+  Serves thumbnail images.
+
+---
+
+## Customization
+
+- **Add/Remove Image Sets**: Add or remove folders under `public/pictures/` and `public/thumbnails/`.
+- **Styling**: Modify `src/App.tsx`, `src/index.css`, or Tailwind config as needed.
+- **API**: Extend backend routes in `backend/src/routes/`.
+
+---
+
+## Development Notes
+
+- The frontend uses IndexedDB to cache thumbnails for performance.
+- If you add new images, use the "Refresh" button in the UI to reload image sets.
+- The backend automatically creates missing thumbnail folders if needed.
+
+---
+
+## License
+
+MIT
+
+---
+
+## Author
+
+ryo_grid
