@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 export interface Image {
   src: string;
@@ -18,56 +18,93 @@ export function getDirectoryName(path: string): string {
 export function useImageSets(): { 
   imageSets: ImageSet[]; 
   loading: boolean; 
-  error: string | null 
+  error: string | null;
+  refreshImageSets: () => void;
+  lastRefreshed: Date | null;
 } {
   const [imageSets, setImageSets] = useState<ImageSet[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    async function loadImageSets() {
-      try {
-        const imageModules = import.meta.glob('/src/assets/pictures/**/*.{jpg,jpeg,png,gif}', { eager: true });
-        
-        const imageSetMap = new Map<string, Image[]>();
-        
-        Object.entries(imageModules).forEach(([path, module]) => {
-          if (path.match(/\/src\/assets\/pictures\/[^\/]+\.[^\/]+$/)) {
-            return;
+  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
+  
+  const fetchImageSets = useCallback(async () => {
+    try {
+      setLoading(true);
+      
+      const photoSetDirectories = [
+        'landscapes',
+        'animals',
+        'cities',
+        'nature'
+      ];
+      
+      const sets: ImageSet[] = [];
+      
+      for (const dir of photoSetDirectories) {
+        try {
+          
+          const setName = dir.charAt(0).toUpperCase() + dir.slice(1);
+          
+          const imageFiles = [
+            { name: 'image1.jpg', alt: 'Image 1' },
+            { name: 'image2.jpg', alt: 'Image 2' },
+            { name: 'image3.jpg', alt: 'Image 3' },
+            { name: 'cat1.jpg', alt: 'Cat 1' },
+            { name: 'cat2.jpg', alt: 'Cat 2' },
+            { name: 'dog1.jpg', alt: 'Dog 1' },
+            { name: 'city1.jpg', alt: 'City 1' },
+            { name: 'city2.jpg', alt: 'City 2' },
+            { name: 'city3.jpg', alt: 'City 3' },
+            { name: 'simon-berger-twukN12EN7c-unsplash.jpg', alt: 'Landscape' },
+            { name: 'bailey-zindel-NRQV-hBF10M-unsplash.jpg', alt: 'Landscape' },
+            { name: 'ken-cheung-KonWFWUaAuk-unsplash.jpg', alt: 'Landscape' }
+          ];
+          
+          const images: Image[] = [];
+          
+          for (const file of imageFiles) {
+            try {
+              const response = await fetch(`/pictures/${dir}/${file.name}`, { method: 'HEAD' });
+              if (response.ok) {
+                images.push({
+                  src: `/pictures/${dir}/${file.name}`,
+                  alt: file.alt
+                });
+              }
+            } catch (err) {
+              console.warn(`Failed to check image ${file.name} in ${dir}:`, err);
+            }
           }
           
-          const dirPath = path.split('/').slice(0, -1).join('/');
-          
-          const imageUrl = (module as any).default;
-          const fileName = path.split('/').pop() || '';
-          const image: Image = {
-            src: imageUrl,
-            alt: fileName.split('.')[0].replace(/-/g, ' ')
-          };
-          
-          if (!imageSetMap.has(dirPath)) {
-            imageSetMap.set(dirPath, []);
+          if (images.length > 0) {
+            sets.push({
+              name: setName,
+              images
+            });
           }
-          imageSetMap.get(dirPath)?.push(image);
-        });
-        
-        const sets: ImageSet[] = Array.from(imageSetMap.entries())
-          .map(([dirPath, images]) => ({
-            name: getDirectoryName(dirPath),
-            images
-          }));
-        
-        setImageSets(sets);
-        setLoading(false);
-      } catch (err) {
-        console.error('Error loading image sets:', err);
-        setError('Failed to load image sets');
-        setLoading(false);
+        } catch (err) {
+          console.warn(`Failed to load images for ${dir}:`, err);
+        }
       }
+      
+      setImageSets(sets);
+      setLastRefreshed(new Date());
+      setError(null);
+    } catch (err) {
+      console.error('Error loading image sets:', err);
+      setError('Failed to load image sets.');
+    } finally {
+      setLoading(false);
     }
-    
-    loadImageSets();
   }, []);
   
-  return { imageSets, loading, error };
+  const refreshImageSets = useCallback(() => {
+    window.location.reload();
+  }, []);
+  
+  useEffect(() => {
+    fetchImageSets();
+  }, [fetchImageSets]);
+  
+  return { imageSets, loading, error, refreshImageSets, lastRefreshed };
 }
