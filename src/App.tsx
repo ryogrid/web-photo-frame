@@ -2,10 +2,11 @@ import { useState, useEffect } from 'react'
 import './App.css'
 import { ChevronLeft, ChevronRight, Play, Pause, RefreshCw } from 'lucide-react'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { useImageSets } from '@/lib/image-utils'
+import { useImageSetsMetadata } from '@/lib/lazy-image-utils'
+import { LazyImage } from './components/lazy-image'
 
 function App() {
-  const { imageSets, loading, error, refreshImageSets, lastRefreshed } = useImageSets();
+  const { imageSets, loading, error, refreshImageSets, lastRefreshed } = useImageSetsMetadata();
   const [currentSetIndex, setCurrentSetIndex] = useState(0);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isSlideshow, setIsSlideshow] = useState(true);
@@ -124,7 +125,7 @@ function App() {
           className="w-full"
         >
           <TabsList className="w-full flex justify-start overflow-x-auto">
-            {imageSets.map((set, index) => (
+            {imageSets.map((set, index: number) => (
               <TabsTrigger 
                 key={index} 
                 value={index.toString()}
@@ -144,14 +145,15 @@ function App() {
             {images.length > 0 ? (
               <>
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <img 
+                  <LazyImage 
                     src={images[currentIndex].src} 
+                    thumbnail={images[currentIndex].thumbnail}
                     alt={images[currentIndex].alt} 
                     className="max-h-full max-w-full object-contain"
                   />
                 </div>
                 <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2">
-                  {images.map((_, index) => (
+                  {images.map((_, index: number) => (
                     <button 
                       key={index} 
                       className={`w-3 h-3 rounded-full ${index === currentIndex ? 'bg-white' : 'bg-gray-500'}`}
@@ -178,14 +180,15 @@ function App() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 p-4">
-            {images.map((image, index) => (
+            {images.map((image, index: number) => (
               <div 
                 key={index} 
                 className={`relative cursor-pointer overflow-hidden rounded-lg ${index === currentIndex ? 'ring-4 ring-blue-500' : ''}`}
                 onClick={() => selectImage(index)}
               >
-                <img 
+                <LazyImage 
                   src={image.src} 
+                  thumbnail={image.thumbnail} 
                   alt={image.alt} 
                   className="w-full h-64 object-cover"
                 />
