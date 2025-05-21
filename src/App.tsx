@@ -143,7 +143,7 @@ function App() {
                     src={images[currentIndex].src} 
                     thumbnail={images[currentIndex].thumbnail}
                     alt={images[currentIndex].alt} 
-                    className="max-h-full max-w-full object-contain"
+                    className="h-full w-full object-contain"
                   />
                 </div>
                 
