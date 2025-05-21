@@ -141,7 +141,6 @@ function App() {
                 <div className="absolute inset-0 flex items-center justify-center">
                   <LazyImage 
                     src={images[currentIndex].src} 
-                    thumbnail={images[currentIndex].thumbnail}
                     alt={images[currentIndex].alt} 
                     className="h-full w-full object-contain"
                   />
