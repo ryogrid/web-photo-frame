@@ -32,7 +32,7 @@ export function useImageSets(): {
     try {
       setLoading(true);
       
-      const response = await fetch('/api/image-sets');
+      const response = await fetch('/api/image-sets-metadata');
       if (!response.ok) {
         throw new Error(`Failed to fetch image sets: ${response.statusText}`);
       }
