@@ -89,54 +89,48 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-900 text-white flex flex-col">
-      {/* Header */}
-      <header className="p-4 bg-gray-800 flex flex-col gap-4">
-        <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold">Photo Frame</h1>
-          <div className="flex gap-2">
-            <button 
-              onClick={toggleSlideshow} 
-              className="px-4 py-2 bg-blue-600 rounded hover:bg-blue-700 transition-colors"
-            >
-              {isSlideshow ? 'View Thumbnails' : 'View Slideshow'}
-            </button>
-            {isSlideshow && (
+      {/* Header - Only shown in thumbnail mode */}
+      {!isSlideshow && (
+        <header className="p-4 bg-gray-800 flex flex-col gap-4">
+          <div className="flex justify-between items-center">
+            <h1 className="text-2xl font-bold">Photo Frame</h1>
+            <div className="flex gap-2">
               <button 
-                onClick={togglePlayPause} 
-                className="p-2 bg-blue-600 rounded hover:bg-blue-700 transition-colors"
+                onClick={toggleSlideshow} 
+                className="px-4 py-2 bg-blue-600 rounded hover:bg-blue-700 transition-colors"
               >
-                {isPlaying ? <Pause size={20} /> : <Play size={20} />}
+                {isSlideshow ? 'View Thumbnails' : 'View Slideshow'}
               </button>
-            )}
-            <button 
-              onClick={() => refreshImageSets()} 
-              className="p-2 bg-blue-600 rounded hover:bg-blue-700 transition-colors"
-              title="Refresh photo sets"
-            >
-              <RefreshCw size={20} />
-            </button>
-          </div>
-        </div>
-        
-        {/* Photo set selector */}
-        <Tabs 
-          value={currentSetIndex.toString()} 
-          onValueChange={handleSetChange}
-          className="w-full"
-        >
-          <TabsList className="w-full flex justify-start overflow-x-auto">
-            {imageSets.map((set, index: number) => (
-              <TabsTrigger 
-                key={index} 
-                value={index.toString()}
-                className="flex-shrink-0"
+              <button 
+                onClick={() => refreshImageSets()} 
+                className="p-2 bg-blue-600 rounded hover:bg-blue-700 transition-colors"
+                title="Refresh photo sets"
               >
-                {set.name}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
-      </header>
+                <RefreshCw size={20} />
+              </button>
+            </div>
+          </div>
+          
+          {/* Photo set selector */}
+          <Tabs 
+            value={currentSetIndex.toString()} 
+            onValueChange={handleSetChange}
+            className="w-full"
+          >
+            <TabsList className="w-full flex justify-start overflow-x-auto">
+              {imageSets.map((set, index: number) => (
+                <TabsTrigger 
+                  key={index} 
+                  value={index.toString()}
+                  className="flex-shrink-0"
+                >
+                  {set.name}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+        </header>
+      )}
 
       {/* Main content */}
       <main className="flex-1 p-4 flex flex-col">
@@ -152,24 +146,39 @@ function App() {
                     className="max-h-full max-w-full object-contain"
                   />
                 </div>
-                <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2">
-                  {images.map((_, index: number) => (
-                    <button 
-                      key={index} 
-                      className={`w-3 h-3 rounded-full ${index === currentIndex ? 'bg-white' : 'bg-gray-500'}`}
-                      onClick={() => setCurrentIndex(index)}
-                    />
-                  ))}
-                </div>
+                
+                {/* Left click/tap area for navigation */}
+                <div 
+                  className="absolute left-0 top-0 w-1/4 h-full cursor-pointer z-10"
+                  onClick={goToPrevious}
+                  aria-label="Previous image"
+                />
+                
+                {/* Right click/tap area for navigation */}
+                <div 
+                  className="absolute right-0 top-0 w-1/4 h-full cursor-pointer z-10"
+                  onClick={goToNext}
+                  aria-label="Next image"
+                />
+                
+                {/* Play/pause button - repositioned to top-right in slideshow mode */}
+                <button 
+                  onClick={togglePlayPause} 
+                  className="absolute top-4 right-4 p-2 bg-black/50 rounded-full hover:bg-black/70 transition-colors z-20"
+                >
+                  {isPlaying ? <Pause size={24} /> : <Play size={24} />}
+                </button>
+                
+                {/* Keep the navigation arrow buttons */}
                 <button 
                   onClick={goToPrevious} 
-                  className="absolute left-4 top-1/2 transform -translate-y-1/2 p-2 bg-black/50 rounded-full hover:bg-black/70 transition-colors"
+                  className="absolute left-4 top-1/2 transform -translate-y-1/2 p-2 bg-black/50 rounded-full hover:bg-black/70 transition-colors z-20"
                 >
                   <ChevronLeft size={24} />
                 </button>
                 <button 
                   onClick={goToNext} 
-                  className="absolute right-4 top-1/2 transform -translate-y-1/2 p-2 bg-black/50 rounded-full hover:bg-black/70 transition-colors"
+                  className="absolute right-4 top-1/2 transform -translate-y-1/2 p-2 bg-black/50 rounded-full hover:bg-black/70 transition-colors z-20"
                 >
                   <ChevronRight size={24} />
                 </button>
@@ -201,11 +210,13 @@ function App() {
         )}
       </main>
 
-      {/* Footer */}
-      <footer className="p-4 bg-gray-800 text-center text-sm">
-        <p>Photo Frame App - Images from Unsplash</p>
-        {lastRefreshed && <p className="text-xs text-gray-400">Last refreshed: {lastRefreshed.toLocaleTimeString()}</p>}
-      </footer>
+      {/* Footer - Only shown in thumbnail mode */}
+      {!isSlideshow && (
+        <footer className="p-4 bg-gray-800 text-center text-sm">
+          <p>Photo Frame App - Images from Unsplash</p>
+          {lastRefreshed && <p className="text-xs text-gray-400">Last refreshed: {lastRefreshed.toLocaleTimeString()}</p>}
+        </footer>
+      )}
     </div>
   )
 }
