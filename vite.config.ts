@@ -22,9 +22,9 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      '/api': 'http://localhost:3000',
-      '/pictures': 'http://localhost:3000',
-      '/thumbnails': 'http://localhost:3000'
+      '/api': 'https://web-photo-frame.onrender.com',
+      '/pictures': 'https://web-photo-frame.onrender.com',
+      '/thumbnails': 'https://web-photo-frame.onrender.com'
     }
   }
 })
