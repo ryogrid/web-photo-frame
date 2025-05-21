@@ -185,7 +185,7 @@ function App() {
                 onClick={() => selectImage(index)}
               >
                 <img 
-                  src={image.src} 
+                  src={image.thumbnail || image.src} 
                   alt={image.alt} 
                   className="w-full h-64 object-cover"
                 />
