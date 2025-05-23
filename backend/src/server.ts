@@ -6,7 +6,7 @@ import imageRoutes from './routes/image-routes.js';
 import imageMetadataRoutes from './routes/image-metadata-routes.js';
 
 const app = express();
-const PORT = 10000;//3000; //process.env.PORT || 3000;
+const PORT = 3000; //process.env.PORT || 3000;
 
 app.use(cors());
 

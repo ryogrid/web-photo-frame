@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, Play, Pause, RefreshCw } from 'lucide-react'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useImageSetsMetadata } from '@/lib/lazy-image-utils'
 import { LazyImage } from './components/lazy-image'
+import { Button } from '@/components/ui/button'
 
 function App() {
   const { imageSets, loading, error, refreshImageSets, lastRefreshed } = useImageSetsMetadata();
@@ -200,14 +201,31 @@ function App() {
               <div 
                 key={index} 
                 className={`relative cursor-pointer overflow-hidden rounded-lg ${index === currentIndex ? 'ring-4 ring-blue-500' : ''}`}
-                onClick={() => selectImage(index)}
               >
                 <LazyImage 
                   src={image.src} 
                   thumbnail={image.thumbnail} 
                   alt={image.alt} 
                   className="w-full h-64 object-cover"
+                  onClick={() => selectImage(index)}
                 />
+                {/* サムネイル右下にスライドショーボタンを配置 */}
+                <div className="absolute bottom-2 right-2 z-10">
+                  <Button 
+                    size="sm" 
+                    variant="secondary" 
+                    className="px-2 py-1 text-xs shadow-md bg-black/60 text-white hover:bg-black/80"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCurrentIndex(index);
+                      setIsSlideshow(true);
+                      setIsPlaying(true);
+                    }}
+                  >
+                    <Play size={16} className="mr-1" />
+                    スライド
+                  </Button>
+                </div>
                 <div className="absolute inset-0 bg-black/30 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
                   <span className="text-white text-lg font-medium">View</span>
                 </div>

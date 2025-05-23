@@ -23,7 +23,7 @@ async function generateThumbnail(
     }
     
     await sharp(imagePath)
-      .resize(300, 200, { fit: 'cover' })
+      .resize(150, 100, { fit: 'cover' }) // サイズを半分に変更
       .toFile(thumbnailPath);
   } catch (error) {
     console.error(`Error generating thumbnail for ${imagePath}:`, error);
