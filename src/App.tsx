@@ -4,10 +4,9 @@ import { ChevronLeft, ChevronRight, Play, Pause, RefreshCw } from 'lucide-react'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useImageSetsMetadata } from '@/lib/lazy-image-utils'
 import { LazyImage } from './components/lazy-image'
-//import { Button } from '@/components/ui/button'
 
 function App() {
-  const { imageSets, loading, error, refreshImageSets, lastRefreshed } = useImageSetsMetadata();
+  const { imageSets, loading, error, refreshImageSets} = useImageSetsMetadata();
   const [currentSetIndex, setCurrentSetIndex] = useState(0);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isSlideshow, setIsSlideshow] = useState(true);
@@ -230,14 +229,6 @@ function App() {
           </div>
         )}
       </main>
-
-      {/* Footer - Only shown in thumbnail mode */}
-      {!isSlideshow && (
-        <footer className="p-4 bg-gray-800 text-center text-sm">
-          <p>Photo Frame App - Images from Unsplash</p>
-          {lastRefreshed && <p className="text-xs text-gray-400">Last refreshed: {lastRefreshed.toLocaleTimeString()}</p>}
-        </footer>
-      )}
     </div>
   )
 }
