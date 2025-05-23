@@ -6,7 +6,7 @@ import { useImageSetsMetadata } from '@/lib/lazy-image-utils'
 import { LazyImage } from './components/lazy-image'
 
 function App() {
-  const { imageSets, loading, error, refreshImageSets, lastRefreshed } = useImageSetsMetadata();
+  const { imageSets, loading, error, refreshImageSets} = useImageSetsMetadata();
   const [currentSetIndex, setCurrentSetIndex] = useState(0);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isSlideshow, setIsSlideshow] = useState(true);
@@ -25,7 +25,7 @@ function App() {
     if (isPlaying && images.length > 0) {
       const interval = window.setInterval(() => {
         setCurrentIndex((prevIndex) => (prevIndex + 1) % images.length);
-      }, 10000); //443); //3000);
+      }, 5000);
       setSlideshowInterval(interval);
     } else if (slideshowInterval !== null) {
       clearInterval(slideshowInterval);
@@ -195,35 +195,40 @@ function App() {
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 p-4">
+          <div
+            className="grid grid-cols-[repeat(auto-fit,minmax(96px,1fr))] gap-2 p-2 sm:gap-3 sm:p-4"
+            style={{
+              // 画像の間隔やパディングはここで調整
+            }}
+          >
             {images.map((image, index: number) => (
-              <div 
-                key={index} 
-                className={`relative cursor-pointer overflow-hidden rounded-lg ${index === currentIndex ? 'ring-4 ring-blue-500' : ''}`}
+              <div
+                key={index}
+                className={`relative cursor-pointer overflow-hidden rounded-lg group ${index === currentIndex ? 'ring-4 ring-blue-500' : ''}`}
                 onClick={() => selectImage(index)}
+                style={{ aspectRatio: '3 / 2', minWidth: 0 }}
               >
-                <LazyImage 
-                  src={image.src} 
-                  thumbnail={image.thumbnail} 
-                  alt={image.alt} 
-                  className="w-full h-64 object-cover"
+                <LazyImage
+                  src={image.src}
+                  thumbnail={image.thumbnail}
+                  alt={image.alt}
+                  className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
                 />
-                <div className="absolute inset-0 bg-black/30 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <span className="text-white text-lg font-medium">View</span>
-                </div>
+                {/* スライドショー開始ボタン（Playアイコンのみ、右下に小さく重ねる） */}
+                <button
+                  className="absolute bottom-2 right-2 z-10 p-1 bg-black/60 rounded-full hover:bg-blue-600 transition-colors flex items-center justify-center"
+                  style={{ width: 28, height: 28 }}
+                  onClick={e => { e.stopPropagation(); setCurrentIndex(index); setIsSlideshow(true); setIsPlaying(true); }}
+                  title="スライドショーをこの画像から開始"
+                >
+                  <Play size={16} className="text-white" />
+                  <span className="sr-only">スライドショー開始</span>
+                </button>
               </div>
             ))}
           </div>
         )}
       </main>
-
-      {/* Footer - Only shown in thumbnail mode */}
-      {!isSlideshow && (
-        <footer className="p-4 bg-gray-800 text-center text-sm">
-          <p>Photo Frame App - Images from Unsplash</p>
-          {lastRefreshed && <p className="text-xs text-gray-400">Last refreshed: {lastRefreshed.toLocaleTimeString()}</p>}
-        </footer>
-      )}
     </div>
   )
 }

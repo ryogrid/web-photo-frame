@@ -48,7 +48,7 @@ export function useImageSetsMetadata(): {
       
       await clearOldThumbnails();
       
-      const response = await fetch('/api/image-sets-metadata');
+      const response = await fetch('/api/image-sets');
       if (!response.ok) {
         throw new Error(`Failed to fetch image sets metadata: ${response.statusText}`);
       }
@@ -76,63 +76,3 @@ export function useImageSetsMetadata(): {
   return { imageSets, loading, error, refreshImageSets, lastRefreshed };
 }
 
-export function usePaginatedImageSet(setName: string): { 
-  imageSet: PaginatedImageSet | null; 
-  loading: boolean; 
-  error: string | null;
-  loadMore: () => void;
-  hasMore: boolean;
-} {
-  const [imageSet, setImageSet] = useState<PaginatedImageSet | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  
-  const fetchImageSet = useCallback(async (currentPage: number) => {
-    try {
-      setLoading(true);
-      
-      await initDB();
-      
-      const response = await fetch(`/api/image-sets-metadata/paginated?set=${setName}&page=${currentPage}&limit=20`);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch image set: ${response.statusText}`);
-      }
-      
-      const data: PaginatedImageSet = await response.json();
-      
-      if (currentPage === 1) {
-        setImageSet(data);
-      } else if (imageSet) {
-        setImageSet({
-          ...data,
-          images: [...imageSet.images, ...data.images]
-        });
-      }
-      
-      setHasMore(data.pagination.page < data.pagination.totalPages);
-      setError(null);
-    } catch (err) {
-      console.error('Error loading image set:', err);
-      setError('Failed to load image set.');
-    } finally {
-      setLoading(false);
-    }
-  }, [setName, imageSet]);
-  
-  const loadMore = useCallback(() => {
-    if (!loading && hasMore) {
-      const nextPage = page + 1;
-      setPage(nextPage);
-      fetchImageSet(nextPage);
-    }
-  }, [loading, hasMore, page, fetchImageSet]);
-  
-  useEffect(() => {
-    setPage(1);
-    fetchImageSet(1);
-  }, [setName, fetchImageSet]);
-  
-  return { imageSet, loading, error, loadMore, hasMore };
-}
