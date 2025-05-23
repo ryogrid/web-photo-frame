@@ -25,7 +25,7 @@ function App() {
     if (isPlaying && images.length > 0) {
       const interval = window.setInterval(() => {
         setCurrentIndex((prevIndex) => (prevIndex + 1) % images.length);
-      }, 3000);
+      }, 5000);
       setSlideshowInterval(interval);
     } else if (slideshowInterval !== null) {
       clearInterval(slideshowInterval);
