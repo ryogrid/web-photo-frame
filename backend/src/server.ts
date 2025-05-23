@@ -3,7 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import cors from 'cors';
 import imageRoutes from './routes/image-routes.js';
-import imageMetadataRoutes from './routes/image-metadata-routes.js';
+//import imageMetadataRoutes from './routes/image-metadata-routes.js';
 
 const app = express();
 const PORT = 3000; //process.env.PORT || 3000;
@@ -25,7 +25,7 @@ app.use('/pictures', express.static(PICTURES_DIR));
 app.use('/thumbnails', express.static(THUMBNAILS_DIR));
 
 app.use('/api', imageRoutes);
-app.use('/api', imageMetadataRoutes);
+//app.use('/api', imageMetadataRoutes);
 
 app.get('*', (req, res) => {
   res.sendFile(path.join(FRONTEND_BUILD_DIR, 'index.html'));
