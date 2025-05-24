@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import { initDB, clearOldThumbnails } from './indexed-db';
 
 export interface Image {
   src: string;
@@ -12,67 +11,56 @@ export interface ImageSet {
   images: Image[];
 }
 
-export interface PaginatedImageSet {
-  name: string;
-  images: Image[];
-  pagination: {
-    total: number;
-    page: number;
-    limit: number;
-    totalPages: number;
-  };
+// Fetch only the list of photo set names (directories)
+export async function fetchPhotoSetNames(): Promise<string[]> {
+  const response = await fetch('/api/photo-sets');
+  if (!response.ok) {
+    throw new Error('Failed to fetch photo set names');
+  }
+  return await response.json();
 }
 
-export function getDirectoryName(path: string): string {
-  const name = path.split('/').pop() || '';
-  return name.charAt(0).toUpperCase() + name.slice(1);
+// Fetch images for a specific photo set (directory)
+export async function fetchImagesForSet(setName: string): Promise<Image[]> {
+  const response = await fetch(`/api/photo-sets/${encodeURIComponent(setName)}`);
+  if (!response.ok) {
+    throw new Error('Failed to fetch images for set');
+  }
+  return await response.json();
 }
 
-export function useImageSetsMetadata(): { 
-  imageSets: ImageSet[]; 
-  loading: boolean; 
-  error: string | null;
-  refreshImageSets: () => void;
-  lastRefreshed: Date | null;
-} {
-  const [imageSets, setImageSets] = useState<ImageSet[]>([]);
+// Hook to get the list of photo set names
+export function usePhotoSetNames() {
+  const [setNames, setSetNames] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
-  
-  const fetchImageSets = useCallback(async () => {
-    try {
-      setLoading(true);
-      
-      await initDB();
-      
-      await clearOldThumbnails();
-      
-      const response = await fetch('/api/image-sets');
-      if (!response.ok) {
-        throw new Error(`Failed to fetch image sets metadata: ${response.statusText}`);
-      }
-      
-      const sets: ImageSet[] = await response.json();
-      setImageSets(sets);
-      setLastRefreshed(new Date());
-      setError(null);
-    } catch (err) {
-      console.error('Error loading image sets metadata:', err);
-      setError('Failed to load image sets metadata.');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-  
-  const refreshImageSets = useCallback(() => {
-    fetchImageSets();
-  }, [fetchImageSets]);
-  
+
   useEffect(() => {
-    fetchImageSets();
-  }, [fetchImageSets]);
-  
-  return { imageSets, loading, error, refreshImageSets, lastRefreshed };
+    fetchPhotoSetNames()
+      .then(setSetNames)
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  return { setNames, loading, error };
+}
+
+// Hook to get images for a specific set
+export function useImagesForSet(setName: string | null) {
+  const [images, setImages] = useState<Image[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!setName) return;
+    setLoading(true);
+    setError(null);
+    fetchImagesForSet(setName)
+      .then(setImages)
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  }, [setName]);
+
+  return { images, loading, error };
 }
 

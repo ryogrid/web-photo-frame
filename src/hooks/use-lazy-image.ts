@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { getThumbnail, cacheThumbnail } from '../lib/indexed-db';
 
 interface UseLazyImageProps {
   src: string;
@@ -22,46 +21,19 @@ export function useLazyImage({ src, thumbnail }: UseLazyImageProps): UseLazyImag
     let isMounted = true;
     setIsLoading(true);
     setError(null);
-    
+
     const loadImage = async () => {
       try {
-        if (thumbnail) {
-          const cachedThumbnail = await getThumbnail(thumbnail);
-          
-          if (cachedThumbnail && isMounted) {
-            const objectUrl = URL.createObjectURL(cachedThumbnail);
-            setImageSrc(objectUrl);
-            setIsLoading(false);
-            return;
-          }
-          
-          const response = await fetch(thumbnail);
-          if (!response.ok) {
-            throw new Error(`Failed to load thumbnail: ${response.statusText}`);
-          }
-          
-          const blob = await response.blob();
-          
-          await cacheThumbnail(thumbnail, blob);
-          
-          if (isMounted) {
-            const objectUrl = URL.createObjectURL(blob);
-            setImageSrc(objectUrl);
-            setIsLoading(false);
-          }
-        } else {
-          const response = await fetch(src);
-          if (!response.ok) {
-            throw new Error(`Failed to load image: ${response.statusText}`);
-          }
-          
-          const blob = await response.blob();
-          
-          if (isMounted) {
-            const objectUrl = URL.createObjectURL(blob);
-            setImageSrc(objectUrl);
-            setIsLoading(false);
-          }
+        const url = thumbnail || src;
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(`Failed to load image: ${response.statusText}`);
+        }
+        const blob = await response.blob();
+        if (isMounted) {
+          const objectUrl = URL.createObjectURL(blob);
+          setImageSrc(objectUrl);
+          setIsLoading(false);
         }
       } catch (err) {
         console.error('Error loading image:', err);
@@ -71,9 +43,9 @@ export function useLazyImage({ src, thumbnail }: UseLazyImageProps): UseLazyImag
         }
       }
     };
-    
+
     loadImage();
-    
+
     return () => {
       isMounted = false;
       if (imageSrc) {
@@ -81,6 +53,6 @@ export function useLazyImage({ src, thumbnail }: UseLazyImageProps): UseLazyImag
       }
     };
   }, [src, thumbnail]);
-  
+
   return { isLoading, error, imageSrc };
 }
