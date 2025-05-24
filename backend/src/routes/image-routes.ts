@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import path from 'path';
 import fs from 'fs';
 import { promises as fsPromises } from 'fs';
@@ -85,5 +85,54 @@ router.get('/image-sets', async (req, res) => {
     res.status(500).json({ error: 'Failed to get image sets' });
   }
 });
+
+// Add endpoint to get list of photo set names
+router.get('/photo-sets', async (req, res) => {
+  try {
+    const PICTURES_DIR = path.join(process.cwd(), '../public/pictures');
+    const directories = await fsPromises.readdir(PICTURES_DIR, { withFileTypes: true });
+    const setNames = directories.filter(dir => dir.isDirectory()).map(dir => dir.name);
+    res.json(setNames);
+  } catch (error) {
+    console.error('Error getting photo set names:', error);
+    res.status(500).json({ error: 'Failed to get photo set names' });
+  }
+});
+
+// Add endpoint to get images for a specific set
+router.get('/photo-sets/:setName', (async (req: Request<{ setName: string }>, res: Response) => {
+  try {
+    const setName = req.params.setName;
+    const PICTURES_DIR = path.join(process.cwd(), '../public/pictures');
+    const THUMBNAILS_DIR = path.join(process.cwd(), '../public/thumbnails');
+    const dirPath = path.join(PICTURES_DIR, setName);
+    const thumbnailDirPath = path.join(THUMBNAILS_DIR, setName);
+    if (!fs.existsSync(dirPath)) {
+      return res.status(404).json({ error: `Photo set '${setName}' not found` });
+    }
+    if (!fs.existsSync(thumbnailDirPath)) {
+      fs.mkdirSync(thumbnailDirPath, { recursive: true });
+    }
+    const files = await fsPromises.readdir(dirPath);
+    const imageFiles = files.filter(file => /\.(jpg|jpeg|png|gif)$/i.test(file));
+    const images: Image[] = [];
+    for (const file of imageFiles) {
+      const imagePath = path.join(dirPath, file);
+      const thumbnailPath = path.join(thumbnailDirPath, file);
+      if (!fs.existsSync(thumbnailPath)) {
+        await generateThumbnail(imagePath, thumbnailPath);
+      }
+      images.push({
+        src: `/pictures/${setName}/${file}`,
+        alt: file.replace(/\.[^/.]+$/, ''),
+        thumbnail: `/thumbnails/${setName}/${file}`
+      });
+    }
+    res.json(images);
+  } catch (error) {
+    console.error('Error getting images for set:', error);
+    res.status(500).json({ error: 'Failed to get images for set' });
+  }
+}) as any);
 
 export default router;
