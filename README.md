@@ -2,6 +2,8 @@
 
 A modern web-based digital photo frame application with a React frontend and an Express/Node.js backend. It supports image sets, thumbnail caching, and a slideshow or gallery view.
 
+- [DeepWiki about this repo](https://deepwiki.com/ryogrid-devin-trial/web-photo-frame)
+
 ---
 
 ## Features
