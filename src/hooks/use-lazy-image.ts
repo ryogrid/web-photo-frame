@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { globalRequestQueue } from '../lib/RequestQueue';
 
 interface UseLazyImageProps {
   src: string;
@@ -22,10 +23,18 @@ export function useLazyImage({ src, thumbnail }: UseLazyImageProps): UseLazyImag
     setIsLoading(true);
     setError(null);
 
-    const loadImage = async () => {
+    const RETRY_DELAY_MS = 1000; // 1秒
+    const TIMEOUT_MS = 100000; // 100秒
+    const MAX_RETRIES = 1;
+
+    const loadImage = async (retryCount = 0) => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
       try {
         const url = thumbnail || src;
-        const response = await fetch(url);
+        const fetchTask = () => fetch(url, { signal: controller.signal });
+        const response = await globalRequestQueue.enqueue(fetchTask, controller);
+        clearTimeout(timeoutId);
         if (!response.ok) {
           throw new Error(`Failed to load image: ${response.statusText}`);
         }
@@ -36,10 +45,19 @@ export function useLazyImage({ src, thumbnail }: UseLazyImageProps): UseLazyImag
           setIsLoading(false);
         }
       } catch (err) {
-        console.error('Error loading image:', err);
-        if (isMounted) {
-          setError(`Failed to load image: ${err instanceof Error ? err.message : String(err)}`);
-          setIsLoading(false);
+        clearTimeout(timeoutId);
+        if (retryCount < MAX_RETRIES) {
+          setTimeout(() => {
+            if (isMounted) {
+              loadImage(retryCount + 1);
+            }
+          }, RETRY_DELAY_MS);
+        } else {
+          console.error('Error loading image:', err);
+          if (isMounted) {
+            setError(`Failed to load image: ${err instanceof Error ? err.message : String(err)}`);
+            setIsLoading(false);
+          }
         }
       }
     };
