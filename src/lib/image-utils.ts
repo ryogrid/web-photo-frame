@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect} from 'react';
 
 export interface Image {
   src: string;
@@ -16,46 +16,30 @@ export function getDirectoryName(path: string): string {
   return name.charAt(0).toUpperCase() + name.slice(1);
 }
 
-export function useImageSets(): { 
-  imageSets: ImageSet[]; 
-  loading: boolean; 
-  error: string | null;
-  refreshImageSets: () => void;
-  lastRefreshed: Date | null;
-} {
-  const [imageSets, setImageSets] = useState<ImageSet[]>([]);
-  const [loading, setLoading] = useState(true);
+// 新しいAPI: 画像セット名を受け取ってそのセットの画像一覧を取得
+export async function fetchImagesForImageSet(setName: string): Promise<Image[]> {
+  const response = await fetch(`/api/image-sets/${encodeURIComponent(setName)}`);
+  if (!response.ok) {
+    throw new Error('Failed to fetch images for image set');
+  }
+  return await response.json();
+}
+
+// カスタムフック: 指定セット名の画像一覧を取得
+export function useImagesForImageSet(setName: string | null) {
+  const [images, setImages] = useState<Image[]>([]);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
-  
-  const fetchImageSets = useCallback(async () => {
-    try {
-      setLoading(true);
-      
-      const response = await fetch('/api/image-sets');
-      if (!response.ok) {
-        throw new Error(`Failed to fetch image sets: ${response.statusText}`);
-      }
-      
-      const sets: ImageSet[] = await response.json();
-      setImageSets(sets);
-      setLastRefreshed(new Date());
-      setError(null);
-    } catch (err) {
-      console.error('Error loading image sets:', err);
-      setError('Failed to load image sets.');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-  
-  const refreshImageSets = useCallback(() => {
-    fetchImageSets();
-  }, [fetchImageSets]);
-  
+
   useEffect(() => {
-    fetchImageSets();
-  }, [fetchImageSets]);
-  
-  return { imageSets, loading, error, refreshImageSets, lastRefreshed };
+    if (!setName) return;
+    setLoading(true);
+    setError(null);
+    fetchImagesForImageSet(setName)
+      .then(setImages)
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  }, [setName]);
+
+  return { images, loading, error };
 }

@@ -20,18 +20,28 @@ export function LazyImage({ src, thumbnail, alt, className, onClick }: LazyImage
   });
   
   useEffect(() => {
+    let timer: NodeJS.Timeout | null = null;
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
-            setIsIntersecting(true);
-            observer.disconnect();
+            if (!timer) {
+              timer = setTimeout(() => {
+                setIsIntersecting(true);
+                observer.disconnect();
+              }, 1000); // 1000ms以上表示されていた場合のみロード
+            }
+          } else {
+            if (timer) {
+              clearTimeout(timer);
+              timer = null;
+            }
           }
         });
       },
       {
-        rootMargin: '100px', // Start loading when image is 100px from viewport
-        threshold: 0.1,
+        rootMargin: '0px', // 画面に入ったときのみ
+        threshold: 0.1,    // 10%以上表示されたとき
       }
     );
     
@@ -41,6 +51,9 @@ export function LazyImage({ src, thumbnail, alt, className, onClick }: LazyImage
     
     return () => {
       observer.disconnect();
+      if (timer) {
+        clearTimeout(timer);
+      }
     };
   }, []);
   
