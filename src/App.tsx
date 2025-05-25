@@ -1,10 +1,11 @@
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import './App.css'
-import { ChevronLeft, ChevronRight, Play, Pause, RefreshCw } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Play, Pause } from 'lucide-react'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { usePhotoSetNames } from '@/lib/lazy-image-utils'
 import { useImagesForImageSet } from '@/lib/image-utils'
 import { LazyImage } from './components/lazy-image'
+import { globalRequestQueue } from './lib/RequestQueue'
 
 function App() {
   const { setNames, loading: setsLoading, error: setsError } = usePhotoSetNames();
@@ -17,8 +18,11 @@ function App() {
   const currentSetName = setNames[currentSetIndex] || '';
   const { images, loading: imagesLoading, error: imagesError } = useImagesForImageSet(currentSetName);
 
+  const thumbGridRef = useRef<HTMLDivElement>(null);
+
   // Reset image index and slideshow when set changes
   React.useEffect(() => {
+    globalRequestQueue.setSetKey();
     setCurrentIndex(0);
     setIsPlaying(false);
   }, [currentSetIndex]);
@@ -70,6 +74,18 @@ function App() {
       setCurrentSetIndex(index);
     }
   }
+
+  const scrollToFirst = () => {
+    if (thumbGridRef.current) {
+      thumbGridRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const scrollToLast = () => {
+    if (thumbGridRef.current) {
+      thumbGridRef.current.scrollTo({ top: thumbGridRef.current.scrollHeight, behavior: 'smooth' });
+    }
+  };
 
   if (setsLoading) {
     return (
@@ -185,7 +201,7 @@ function App() {
           )}
         </div>
       ) : (
-        <div className="flex-1 p-4 grid grid-cols-2 md:grid-cols-4 gap-4 bg-gray-900">
+        <div className="flex-1 p-4 grid gap-2 bg-gray-900 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900" style={{gridTemplateColumns: 'repeat(auto-fit, minmax(10rem, 1fr))', display: 'grid', maxHeight: '100vh'}} ref={thumbGridRef}>
           {imagesLoading ? (
             <p className="text-xl">Loading images...</p>
           ) : imagesError ? (
@@ -193,7 +209,7 @@ function App() {
           ) : images.length > 0 ? (
             images.map((img, idx) => (
               <div key={idx} className="cursor-pointer" onClick={() => selectImage(idx)}>
-                <LazyImage src={img.thumbnail || img.src} alt={img.alt} className="w-full h-64 object-cover" />
+                <LazyImage src={img.thumbnail || img.src} alt={img.alt} className="w-40 h-40 object-cover" />
               </div>
             ))
           ) : (
@@ -201,6 +217,23 @@ function App() {
           )}
         </div>
       )}
+      {/* スクロール先頭・末尾ボタン */}
+      <button
+        onClick={scrollToFirst}
+        className="fixed bottom-24 right-4 bg-black/50 text-white rounded-full p-3 mb-2 shadow-lg hover:bg-black/70 transition-colors z-30"
+        style={{backdropFilter: 'blur(4px)'}}
+        aria-label="最初に移動"
+      >
+        ⬆
+      </button>
+      <button
+        onClick={scrollToLast}
+        className="fixed bottom-4 right-4 bg-black/50 text-white rounded-full p-3 shadow-lg hover:bg-black/70 transition-colors z-30"
+        style={{backdropFilter: 'blur(4px)'}}
+        aria-label="最後に移動"
+      >
+        ⬇
+      </button>
     </div>
   );
 }
