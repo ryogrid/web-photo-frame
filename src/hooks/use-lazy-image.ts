@@ -23,9 +23,12 @@ export function useLazyImage({ src, thumbnail }: UseLazyImageProps): UseLazyImag
     setError(null);
 
     const loadImage = async () => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 100000); // 100秒タイムアウト
       try {
         const url = thumbnail || src;
-        const response = await fetch(url);
+        const response = await fetch(url, { signal: controller.signal });
+        clearTimeout(timeoutId);
         if (!response.ok) {
           throw new Error(`Failed to load image: ${response.statusText}`);
         }

@@ -2,7 +2,8 @@ import React, { useState } from 'react'
 import './App.css'
 import { ChevronLeft, ChevronRight, Play, Pause, RefreshCw } from 'lucide-react'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { usePhotoSetNames, useImagesForSet } from '@/lib/lazy-image-utils'
+import { usePhotoSetNames } from '@/lib/lazy-image-utils'
+import { useImagesForImageSet } from '@/lib/image-utils'
 import { LazyImage } from './components/lazy-image'
 
 function App() {
@@ -14,7 +15,7 @@ function App() {
   const [slideshowInterval, setSlideshowInterval] = useState<number | null>(null);
 
   const currentSetName = setNames[currentSetIndex] || '';
-  const { images, loading: imagesLoading, error: imagesError } = useImagesForSet(currentSetName);
+  const { images, loading: imagesLoading, error: imagesError } = useImagesForImageSet(currentSetName);
 
   // Reset image index and slideshow when set changes
   React.useEffect(() => {

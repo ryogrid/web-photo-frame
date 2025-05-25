@@ -31,60 +31,60 @@ async function generateThumbnail(
   }
 }
 
-router.get('/image-sets', async (req, res) => {
-  try {
-    const imageSets: ImageSet[] = [];
-    const PICTURES_DIR = path.join(process.cwd(), '../public/pictures');
-    const THUMBNAILS_DIR = path.join(process.cwd(), '../public/thumbnails');
+// router.get('/image-sets', async (req, res) => {
+//   try {
+//     const imageSets: ImageSet[] = [];
+//     const PICTURES_DIR = path.join(process.cwd(), '../public/pictures');
+//     const THUMBNAILS_DIR = path.join(process.cwd(), '../public/thumbnails');
     
-    const directories = await fsPromises.readdir(PICTURES_DIR, { withFileTypes: true });
+//     const directories = await fsPromises.readdir(PICTURES_DIR, { withFileTypes: true });
     
-    for (const dir of directories) {
-      if (dir.isDirectory()) {
-        const dirPath = path.join(PICTURES_DIR, dir.name);
-        const thumbnailDirPath = path.join(THUMBNAILS_DIR, dir.name);
+//     for (const dir of directories) {
+//       if (dir.isDirectory()) {
+//         const dirPath = path.join(PICTURES_DIR, dir.name);
+//         const thumbnailDirPath = path.join(THUMBNAILS_DIR, dir.name);
         
-        if (!fs.existsSync(thumbnailDirPath)) {
-          fs.mkdirSync(thumbnailDirPath, { recursive: true });
-        }
+//         if (!fs.existsSync(thumbnailDirPath)) {
+//           fs.mkdirSync(thumbnailDirPath, { recursive: true });
+//         }
         
-        const files = await fsPromises.readdir(dirPath);
-        const imageFiles = files.filter(file => 
-          /\.(jpg|jpeg|png|gif)$/i.test(file)
-        );
+//         const files = await fsPromises.readdir(dirPath);
+//         const imageFiles = files.filter(file => 
+//           /\.(jpg|jpeg|png|gif)$/i.test(file)
+//         );
         
-        const images: Image[] = [];
+//         const images: Image[] = [];
         
-        for (const file of imageFiles) {
-          const imagePath = path.join(dirPath, file);
-          const thumbnailPath = path.join(thumbnailDirPath, file);
+//         for (const file of imageFiles) {
+//           const imagePath = path.join(dirPath, file);
+//           const thumbnailPath = path.join(thumbnailDirPath, file);
           
-          if (!fs.existsSync(thumbnailPath)) {
-            await generateThumbnail(imagePath, thumbnailPath);
-          }
+//           if (!fs.existsSync(thumbnailPath)) {
+//             await generateThumbnail(imagePath, thumbnailPath);
+//           }
           
-          images.push({
-            src: `/pictures/${dir.name}/${file}`,
-            alt: file.replace(/\.[^/.]+$/, ''), // Remove file extension
-            thumbnail: `/thumbnails/${dir.name}/${file}`
-          });
-        }
+//           images.push({
+//             src: `/pictures/${dir.name}/${file}`,
+//             alt: file.replace(/\.[^/.]+$/, ''), // Remove file extension
+//             thumbnail: `/thumbnails/${dir.name}/${file}`
+//           });
+//         }
         
-        if (images.length > 0) {
-          imageSets.push({
-            name: getDirectoryName(dir.name),
-            images
-          });
-        }
-      }
-    }
+//         if (images.length > 0) {
+//           imageSets.push({
+//             name: getDirectoryName(dir.name),
+//             images
+//           });
+//         }
+//       }
+//     }
     
-    res.json(imageSets);
-  } catch (error) {
-    console.error('Error getting image sets:', error);
-    res.status(500).json({ error: 'Failed to get image sets' });
-  }
-});
+//     res.json(imageSets);
+//   } catch (error) {
+//     console.error('Error getting image sets:', error);
+//     res.status(500).json({ error: 'Failed to get image sets' });
+//   }
+// });
 
 // Add endpoint to get list of photo set names
 router.get('/photo-sets', async (req, res) => {
@@ -99,19 +99,30 @@ router.get('/photo-sets', async (req, res) => {
   }
 });
 
-// Add endpoint to get images for a specific set
-router.get('/photo-sets/:setName', (async (req: Request<{ setName: string }>, res: Response) => {
+// Add endpoint to get images for a specific image set
+router.get('/image-sets/:setName', (async (req: Request<{ setName: string }>, res: Response) => {
   try {
     const setName = req.params.setName;
     const PICTURES_DIR = path.join(process.cwd(), '../public/pictures');
     const THUMBNAILS_DIR = path.join(process.cwd(), '../public/thumbnails');
     const dirPath = path.join(PICTURES_DIR, setName);
     const thumbnailDirPath = path.join(THUMBNAILS_DIR, setName);
+    const metadataPath = path.join(thumbnailDirPath, 'image-set-metadata.json');
     if (!fs.existsSync(dirPath)) {
-      return res.status(404).json({ error: `Photo set '${setName}' not found` });
+      return res.status(404).json({ error: `Image set '${setName}' not found` });
     }
     if (!fs.existsSync(thumbnailDirPath)) {
       fs.mkdirSync(thumbnailDirPath, { recursive: true });
+    }
+    // 既存のメタデータファイルがあればそれを返す
+    if (fs.existsSync(metadataPath)) {
+      try {
+        const metadata = await fsPromises.readFile(metadataPath, 'utf-8');
+        return res.json(JSON.parse(metadata));
+      } catch (err) {
+        // ファイルが壊れていた場合は再生成
+        console.warn(`image-set-metadata.json 読み込み失敗: ${err}`);
+      }
     }
     const files = await fsPromises.readdir(dirPath);
     const imageFiles = files.filter(file => /\.(jpg|jpeg|png|gif)$/i.test(file));
@@ -128,10 +139,12 @@ router.get('/photo-sets/:setName', (async (req: Request<{ setName: string }>, re
         thumbnail: `/thumbnails/${setName}/${file}`
       });
     }
+    // メタデータをJSONファイルとして保存
+    await fsPromises.writeFile(metadataPath, JSON.stringify(images, null, 2), 'utf-8');
     res.json(images);
   } catch (error) {
-    console.error('Error getting images for set:', error);
-    res.status(500).json({ error: 'Failed to get images for set' });
+    console.error('Error getting images for image set:', error);
+    res.status(500).json({ error: 'Failed to get images for image set' });
   }
 }) as any);
 

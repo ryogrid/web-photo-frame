@@ -22,7 +22,7 @@ export async function fetchPhotoSetNames(): Promise<string[]> {
 
 // Fetch images for a specific photo set (directory)
 export async function fetchImagesForSet(setName: string): Promise<Image[]> {
-  const response = await fetch(`/api/photo-sets/${encodeURIComponent(setName)}`);
+  const response = await fetch(`/api/image-sets/${encodeURIComponent(setName)}`);
   if (!response.ok) {
     throw new Error('Failed to fetch images for set');
   }
