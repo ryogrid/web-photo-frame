@@ -166,11 +166,14 @@ export function OneDriveBrowser({ onImagesSelected }: OneDriveBrowserProps) {
       setFolderContents([]);
     }
   };
-
   const selectFolder = async (folder: OneDriveItem) => {
     setIsLoading(true);
     try {
+      console.log('Selecting folder:', folder.name, 'ID:', folder.id);
       const images = await oneDriveAuthService.getImagesFromFolder(folder.id);
+      
+      console.log('Retrieved images:', images.length);
+      
       if (images.length === 0) {
         toast({
           title: "No Images",
@@ -186,11 +189,19 @@ export function OneDriveBrowser({ onImagesSelected }: OneDriveBrowserProps) {
         title: "Success",
         description: `Loaded ${images.length} images from ${folder.name}`,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to load images from folder:', error);
+      
+      let errorMessage = "Failed to load images from the selected folder";
+      if (error?.message) {
+        errorMessage = error.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+      
       toast({
         title: "Error",
-        description: "Failed to load images from the selected folder",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
