@@ -6,6 +6,10 @@ import { usePhotoSetNames } from '@/lib/lazy-image-utils'
 import { useImagesForImageSet } from '@/lib/image-utils'
 import { LazyImage } from './components/lazy-image'
 import { globalRequestQueue } from './lib/RequestQueue'
+import { OneDriveBrowser } from '@/components/onedrive-browser'
+import { useOneDriveImages, convertOneDriveImageToAppImage } from '@/hooks/use-onedrive-images'
+import { Button } from '@/components/ui/button'
+import { Toaster } from '@/components/ui/toaster'
 
 function App() {
   const { setNames, loading: setsLoading, error: setsError } = usePhotoSetNames();
@@ -15,8 +19,14 @@ function App() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [slideshowInterval, setSlideshowInterval] = useState<number | null>(null);
 
+  // OneDrive integration
+  const { oneDriveImages, setOneDriveImages, clearOneDriveImages, isUsingOneDrive } = useOneDriveImages();
+
   const currentSetName = setNames[currentSetIndex] || '';
-  const { images, loading: imagesLoading, error: imagesError } = useImagesForImageSet(currentSetName);
+  const { images: localImages, loading: imagesLoading, error: imagesError } = useImagesForImageSet(currentSetName);
+
+  // Use OneDrive images if available, otherwise use local images
+  const images = isUsingOneDrive ? oneDriveImages.map(convertOneDriveImageToAppImage) : localImages;
 
   const thumbGridRef = useRef<HTMLDivElement>(null);
 
@@ -67,13 +77,27 @@ function App() {
       setIsSlideshow(true);
     }
   }
-
   const handleSetChange = (value: string) => {
     const index = parseInt(value);
     if (!isNaN(index) && index >= 0 && index < setNames.length) {
       setCurrentSetIndex(index);
     }
   }
+
+  const handleOneDriveImagesSelected = (selectedImages: any[]) => {
+    setOneDriveImages(selectedImages);
+    setCurrentIndex(0);
+    setIsPlaying(false);
+    if (!isSlideshow) {
+      setIsSlideshow(true);
+    }
+  };
+
+  const handleSwitchToLocal = () => {
+    clearOneDriveImages();
+    setCurrentIndex(0);
+    setIsPlaying(false);
+  };
 
   const scrollToFirst = () => {
     if (thumbGridRef.current) {
@@ -86,8 +110,7 @@ function App() {
       thumbGridRef.current.scrollTo({ top: thumbGridRef.current.scrollHeight, behavior: 'smooth' });
     }
   };
-
-  if (setsLoading) {
+  if (setsLoading && !isUsingOneDrive) {
     return (
       <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center">
         <p className="text-xl">Loading photo sets...</p>
@@ -95,24 +118,35 @@ function App() {
     );
   }
 
-  if (setsError || setNames.length === 0) {
+  if (!isUsingOneDrive && (setsError || setNames.length === 0)) {
     return (
       <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center">
         <p className="text-xl text-red-500">
           {setsError || "No photo sets found. Please add images to subdirectories in the pictures folder."}
         </p>
+        <div className="mt-4">
+          <OneDriveBrowser onImagesSelected={handleOneDriveImagesSelected} />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white flex flex-col">
-      {/* Header - Only shown in thumbnail mode */}
+    <div className="min-h-screen bg-gray-900 text-white flex flex-col">      {/* Header - Only shown in thumbnail mode */}
       {!isSlideshow && (
         <header className="p-4 bg-gray-800 flex flex-col gap-4">
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold">Photo Frame</h1>
             <div className="flex gap-2">
+              <OneDriveBrowser onImagesSelected={handleOneDriveImagesSelected} />
+              {isUsingOneDrive && (
+                <Button 
+                  onClick={handleSwitchToLocal} 
+                  variant="outline"
+                >
+                  Switch to Local Images
+                </Button>
+              )}
               <button 
                 onClick={toggleSlideshow} 
                 className="px-4 py-2 bg-blue-600 rounded hover:bg-blue-700 transition-colors"
@@ -121,32 +155,39 @@ function App() {
               </button>
             </div>
           </div>
-          {/* Photo set selector */}
-          <Tabs 
-            value={currentSetIndex.toString()} 
-            onValueChange={handleSetChange}
-            className="w-full"
-          >
-            <TabsList className="w-full flex justify-start overflow-x-auto">
-              {setNames.map((set, index: number) => (
-                <TabsTrigger 
-                  key={index} 
-                  value={index.toString()}
-                  className="flex-shrink-0"
-                >
-                  {set}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
+          {/* Photo set selector - Only show when using local images */}
+          {!isUsingOneDrive && (
+            <Tabs 
+              value={currentSetIndex.toString()} 
+              onValueChange={handleSetChange}
+              className="w-full"
+            >
+              <TabsList className="w-full flex justify-start overflow-x-auto">
+                {setNames.map((set, index: number) => (
+                  <TabsTrigger 
+                    key={index} 
+                    value={index.toString()}
+                    className="flex-shrink-0"
+                  >
+                    {set}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
+          )}
+          {/* OneDrive indicator */}
+          {isUsingOneDrive && (
+            <div className="text-sm text-green-400">
+              📁 Viewing OneDrive images ({images.length} images)
+            </div>
+          )}
         </header>
       )}
       {/* Main content */}
-      {isSlideshow ? (
-        <div className="relative flex-1 flex items-center justify-center">
-          {imagesLoading ? (
+      {isSlideshow ? (        <div className="relative flex-1 flex items-center justify-center">
+          {(!isUsingOneDrive && imagesLoading) ? (
             <p className="text-xl">Loading images...</p>
-          ) : imagesError ? (
+          ) : (!isUsingOneDrive && imagesError) ? (
             <p className="text-xl text-red-500">{imagesError}</p>
           ) : images.length > 0 ? (
             <>
@@ -200,11 +241,10 @@ function App() {
             <p className="text-xl">No images found in this set.</p>
           )}
         </div>
-      ) : (
-        <div className="flex-1 p-4 grid gap-2 bg-gray-900 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900" style={{gridTemplateColumns: 'repeat(auto-fit, minmax(10rem, 1fr))', display: 'grid', maxHeight: '100vh'}} ref={thumbGridRef}>
-          {imagesLoading ? (
+      ) : (        <div className="flex-1 p-4 grid gap-2 bg-gray-900 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900" style={{gridTemplateColumns: 'repeat(auto-fit, minmax(10rem, 1fr))', display: 'grid', maxHeight: '100vh'}} ref={thumbGridRef}>
+          {(!isUsingOneDrive && imagesLoading) ? (
             <p className="text-xl">Loading images...</p>
-          ) : imagesError ? (
+          ) : (!isUsingOneDrive && imagesError) ? (
             <p className="text-xl text-red-500">{imagesError}</p>
           ) : images.length > 0 ? (
             images.map((img, idx) => (
@@ -225,8 +265,7 @@ function App() {
         aria-label="最初に移動"
       >
         ⬆
-      </button>
-      <button
+      </button>      <button
         onClick={scrollToLast}
         className="fixed bottom-4 right-4 bg-black/50 text-white rounded-full p-3 shadow-lg hover:bg-black/70 transition-colors z-30"
         style={{backdropFilter: 'blur(4px)'}}
@@ -234,6 +273,7 @@ function App() {
       >
         ⬇
       </button>
+      <Toaster />
     </div>
   );
 }
