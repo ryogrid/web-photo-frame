@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react';
 import { globalRequestQueue } from '../lib/RequestQueue';
-// import { simpleObjectURLManager } from '../lib/SimpleObjectURLManager';
 
 interface UseLazyImageProps {
   src: string;
   thumbnail?: string;
   alt: string;
-  retryKey?: number; // リトライ用のキー
+  retryKey?: number; // Retry counter
 }
 
 interface UseLazyImageResult {
@@ -29,13 +28,6 @@ export function useLazyImage({ src, thumbnail, retryKey = 0 }: UseLazyImageProps
     setIsLoading(true);
     setError(null);
 
-    // 一時的にキャッシュ機能を無効化してテスト
-    // const cachedObjectUrl = thumbnailMemoryManager.getObjectUrl(url);
-    // if (cachedObjectUrl) {
-    //   setImageSrc(cachedObjectUrl);
-    //   setIsLoading(false);
-    //   return;
-    // }
 
     setImageSrc(null);
 
@@ -63,12 +55,7 @@ export function useLazyImage({ src, thumbnail, retryKey = 0 }: UseLazyImageProps
         const blob = await response.blob();
         
         if (!isMounted) return;
-        
         const objectUrl = URL.createObjectURL(blob);
-        
-        // 一時的にSimpleObjectURLManager登録を無効化
-        // simpleObjectURLManager.add(url, objectUrl);
-        
         setImageSrc(objectUrl);
         setIsLoading(false);
       } catch (err) {
@@ -99,16 +86,11 @@ export function useLazyImage({ src, thumbnail, retryKey = 0 }: UseLazyImageProps
         clearTimeout(retryTimeoutId);
       }
     };
-  }, [src, thumbnail, retryKey]); // retryKeyを依存配列に追加
+  }, [src, thumbnail, retryKey]); // Add retryKey to dependency array
 
-  // コンポーネントアンマウント時のクリーンアップ
+  // Component unmount cleanup
   useEffect(() => {
     return () => {
-      // 一時的にSimpleObjectURLManager削除を無効化
-      // const url = thumbnail || src;
-      // simpleObjectURLManager.remove(url);
-      
-      // 元のクリーンアップ方式に戻す
       if (imageSrc) {
         try {
           URL.revokeObjectURL(imageSrc);

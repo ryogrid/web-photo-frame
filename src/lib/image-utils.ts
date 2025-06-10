@@ -16,7 +16,7 @@ export function getDirectoryName(path: string): string {
   return name.charAt(0).toUpperCase() + name.slice(1);
 }
 
-// 新しいAPI: 画像セット名を受け取ってそのセットの画像一覧を取得
+// New API: Fetch image list for a given image set name
 export async function fetchImagesForImageSet(setName: string): Promise<Image[]> {
   const response = await fetch(`/api/image-sets/${encodeURIComponent(setName)}`);
   if (!response.ok) {
@@ -25,7 +25,7 @@ export async function fetchImagesForImageSet(setName: string): Promise<Image[]> 
   return await response.json();
 }
 
-// カスタムフック: 指定セット名の画像一覧を取得
+// Custom hook: Get image list for specified set name
 export function useImagesForImageSet(setName: string | null) {
   const [images, setImages] = useState<Image[]>([]);
   const [loading, setLoading] = useState(false);

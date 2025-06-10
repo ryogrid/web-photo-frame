@@ -1,6 +1,5 @@
 import { useRef, useEffect, useState } from 'react';
 import { useLazyImage } from '../hooks/use-lazy-image';
-// import { thumbnailMemoryManager } from '../lib/ThumbnailMemoryManager';
 
 interface LazyImageProps {
   src: string;
@@ -12,28 +11,24 @@ interface LazyImageProps {
 
 export function LazyImage({ src, thumbnail, alt, className, onClick }: LazyImageProps) {
   const [isIntersecting, setIsIntersecting] = useState(false);
-  const [retryKey, setRetryKey] = useState(0); // リトライ用のキー
+  const [retryKey, setRetryKey] = useState(0); // Retry counter
   const imgRef = useRef<HTMLDivElement>(null);
   
   const { isLoading, error, imageSrc } = useLazyImage({
     src,
     thumbnail,
     alt,
-    retryKey, // リトライキーを渡してuseEffectを再実行
+    retryKey, // Pass retry key to trigger useEffect re-execution
   });
   
   useEffect(() => {
     let timer: NodeJS.Timeout | null = null;
     const currentElement = imgRef.current;
-    // const url = thumbnail || src;
     
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           const isVisible = entry.isIntersecting;
-          
-          // 一時的にメモリマネージャーへの通知を無効化
-          // thumbnailMemoryManager.updateVisibility(url, isVisible);
           
           if (isVisible) {
             if (!timer) {
@@ -51,7 +46,7 @@ export function LazyImage({ src, thumbnail, alt, className, onClick }: LazyImage
         });
       },
       {
-        rootMargin: '100px', // より早めにロード開始
+        rootMargin: '100px', // Start loading earlier
         threshold: 0.1,
       }
     );
@@ -66,18 +61,16 @@ export function LazyImage({ src, thumbnail, alt, className, onClick }: LazyImage
         clearTimeout(timer);
         timer = null;
       }
-      // 一時的にメモリマネージャーへの通知を無効化
-      // thumbnailMemoryManager.updateVisibility(url, false);
     };
   }, [src, thumbnail]);
 
-  // エラー時の自動リトライ機能
+  // Automatic retry on error
   useEffect(() => {
-    if (error && retryKey < 3) { // 最大3回まで
+    if (error && retryKey < 3) { // Maximum 3 retries
       const retryTimer = setTimeout(() => {
         console.log(`Retrying image load (attempt ${retryKey + 1}):`, thumbnail || src);
         setRetryKey(prev => prev + 1);
-      }, 1000); // 1秒待機
+      }, 1000); // Wait 1 second
 
       return () => {
         clearTimeout(retryTimer);
@@ -85,7 +78,7 @@ export function LazyImage({ src, thumbnail, alt, className, onClick }: LazyImage
     }
   }, [error, retryKey, src, thumbnail]);
 
-  // src/thumbnailが変更されたらretryKeyをリセット
+  // Reset retry counter when src/thumbnail changes
   useEffect(() => {
     setRetryKey(0);
   }, [src, thumbnail]);

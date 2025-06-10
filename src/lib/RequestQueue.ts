@@ -1,5 +1,5 @@
-// サムネイル画像リクエスト用のグローバルキュー
-// 最大同時実行数を制御し、キューのクリアも可能
+// Global queue for thumbnail image requests
+// Controls maximum concurrent execution and enables queue clearing
 
 export type RequestTask<T> = () => Promise<T>;
 
@@ -59,5 +59,5 @@ export class RequestQueue {
   }
 }
 
-// グローバルなキューインスタンスを作成
-export const globalRequestQueue = new RequestQueue(10); // 同時10件まで（元の設定に戻す） 
+// Create global queue instance
+export const globalRequestQueue = new RequestQueue(10); // Maximum 10 concurrent requests 

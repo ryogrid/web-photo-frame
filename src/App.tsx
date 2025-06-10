@@ -21,28 +21,16 @@ function App() {
 
   const thumbGridRef = useRef<HTMLDivElement>(null);
 
-  // アプリケーション終了時のクリーンアップ（一時的に無効化）
-  // React.useEffect(() => {
-  //   return () => {
-  //     simpleObjectURLManager.clear();
-  //   };
-  // }, []);
-
   // Reset image index and slideshow when set changes
   React.useEffect(() => {
     globalRequestQueue.setSetKey();
-    // 一時的にSimpleObjectURLManager無効化
-    // simpleObjectURLManager.clear(); // シンプルObjectURL管理をクリア
-    
-    // スライドショーの状態を完全にリセット
     setIsPlaying(false);
     setCurrentIndex(0);
-    
     console.log(`Changed to image set: ${currentSetIndex}, reset to index 0`);
   }, [currentSetIndex]);
 
   React.useEffect(() => {
-    // 既存のインターバルをクリア
+    // Clear existing interval
     if (slideshowInterval !== null) {
       clearInterval(slideshowInterval);
       setSlideshowInterval(null);
@@ -52,7 +40,6 @@ function App() {
       const interval = window.setInterval(() => {
         setCurrentIndex((prevIndex) => {
           const nextIndex = (prevIndex + 1) % images.length;
-          // デバッグ用ログ（開発時に有用）
           console.log(`Slideshow: ${prevIndex} → ${nextIndex} (total: ${images.length})`);
           return nextIndex;
         });
@@ -240,14 +227,14 @@ function App() {
           )}
         </div>
       )}
-      {/* スクロール先頭・末尾ボタン（サムネイルモードでのみ表示）*/}
+      {/* Scroll to top/bottom buttons (only shown in thumbnail mode) */}
       {!isSlideshow && (
         <>
           <button
             onClick={scrollToFirst}
             className="fixed bottom-24 right-4 bg-black/50 text-white rounded-full p-3 mb-2 shadow-lg hover:bg-black/70 transition-colors z-30"
             style={{backdropFilter: 'blur(4px)'}}
-            aria-label="最初に移動"
+            aria-label="Scroll to top"
           >
             ⬆
           </button>
@@ -255,7 +242,7 @@ function App() {
             onClick={scrollToLast}
             className="fixed bottom-4 right-4 bg-black/50 text-white rounded-full p-3 shadow-lg hover:bg-black/70 transition-colors z-30"
             style={{backdropFilter: 'blur(4px)'}}
-            aria-label="最後に移動"
+            aria-label="Scroll to bottom"
           >
             ⬇
           </button>

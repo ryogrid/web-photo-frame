@@ -5,24 +5,23 @@ import cors from 'cors';
 import compression from 'compression';
 import imageRoutes from './routes/image-routes.js';
 import staticRoutes from './routes/static-routes.js';
-//import imageMetadataRoutes from './routes/image-metadata-routes.js';
 
 const app = express();
-const PORT = 3000; //process.env.PORT || 3000;
+const PORT = 3000;
 
 app.use(cors());
 
-// 圧縮ミドルウェア（画像以外に有効）
+// Compression middleware (for non-image files)
 app.use(compression({
   filter: (req, res) => {
-    // 画像ファイルは圧縮しない（既に圧縮済み + CPU負荷軽減）
+    // Don't compress image files (already compressed + reduce CPU load)
     if (req.url.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
       return false;
     }
     return compression.filter(req, res);
   },
-  level: 6, // 圧縮レベル（1-9、6が推奨バランス）
-  threshold: 1024, // 1KB以上のファイルのみ圧縮
+  level: 6, // Compression level (1-9, 6 is recommended balance)
+  threshold: 1024, // Only compress files larger than 1KB
 }));
 
 const FRONTEND_BUILD_DIR = path.join(process.cwd(), '../dist');
@@ -33,15 +32,15 @@ if (!fs.existsSync(THUMBNAILS_DIR)) {
   fs.mkdirSync(THUMBNAILS_DIR, { recursive: true });
 }
 
-// 静的ファイル配信の最適化
+// Static file serving optimization
 const staticOptions = {
-  maxAge: '1d', // 1日間キャッシュ
-  etag: true,   // ETags有効化
-  lastModified: true, // Last-Modified有効化
+  maxAge: '1d', // Cache for 1 day
+  etag: true,   // Enable ETags
+  lastModified: true, // Enable Last-Modified
   setHeaders: (res: any, path: string) => {
-    // 画像ファイルはより長期間キャッシュ
+    // Cache image files for longer
     if (path.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
-      res.setHeader('Cache-Control', 'public, max-age=86400'); // 1日
+      res.setHeader('Cache-Control', 'public, max-age=86400'); // 1 day
     }
   }
 };
@@ -53,8 +52,7 @@ app.use('/pictures', express.static(PICTURES_DIR, staticOptions));
 app.use('/thumbnails', express.static(THUMBNAILS_DIR, staticOptions));
 
 app.use('/api', imageRoutes);
-app.use('/api', staticRoutes); // 高速静的ファイル配信
-//app.use('/api', imageMetadataRoutes);
+app.use('/api', staticRoutes); // Fast static file serving
 
 app.get('*', (req, res) => {
   res.sendFile(path.join(FRONTEND_BUILD_DIR, 'index.html'));
