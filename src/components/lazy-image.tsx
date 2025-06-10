@@ -12,12 +12,14 @@ interface LazyImageProps {
 
 export function LazyImage({ src, thumbnail, alt, className, onClick }: LazyImageProps) {
   const [isIntersecting, setIsIntersecting] = useState(false);
+  const [retryKey, setRetryKey] = useState(0); // リトライ用のキー
   const imgRef = useRef<HTMLDivElement>(null);
   
   const { isLoading, error, imageSrc } = useLazyImage({
     src,
     thumbnail,
     alt,
+    retryKey, // リトライキーを渡してuseEffectを再実行
   });
   
   useEffect(() => {
@@ -68,6 +70,25 @@ export function LazyImage({ src, thumbnail, alt, className, onClick }: LazyImage
       // thumbnailMemoryManager.updateVisibility(url, false);
     };
   }, [src, thumbnail]);
+
+  // エラー時の自動リトライ機能
+  useEffect(() => {
+    if (error && retryKey < 3) { // 最大3回まで
+      const retryTimer = setTimeout(() => {
+        console.log(`Retrying image load (attempt ${retryKey + 1}):`, thumbnail || src);
+        setRetryKey(prev => prev + 1);
+      }, 1000); // 1秒待機
+
+      return () => {
+        clearTimeout(retryTimer);
+      };
+    }
+  }, [error, retryKey, src, thumbnail]);
+
+  // src/thumbnailが変更されたらretryKeyをリセット
+  useEffect(() => {
+    setRetryKey(0);
+  }, [src, thumbnail]);
   
   return (
     <div 
@@ -82,7 +103,14 @@ export function LazyImage({ src, thumbnail, alt, className, onClick }: LazyImage
           </div>
         ) : error ? (
           <div className="w-full h-full flex items-center justify-center bg-gray-800 text-red-500">
-            <span>Error loading image</span>
+            {retryKey < 3 ? (
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-red-500 mx-auto mb-2"></div>
+                <span className="text-sm">Retrying... ({retryKey + 1}/3)</span>
+              </div>
+            ) : (
+              <span>Error loading image</span>
+            )}
           </div>
         ) : (
           <img 

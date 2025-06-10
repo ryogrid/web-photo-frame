@@ -134,9 +134,9 @@ router.get('/image-sets/:setName', (async (req: Request<{ setName: string }>, re
         await generateThumbnail(imagePath, thumbnailPath);
       }
       images.push({
-        src: `/pictures/${setName}/${file}`,
+        src: `/api/fast-pictures/${setName}/${file}`,
         alt: file.replace(/\.[^/.]+$/, ''),
-        thumbnail: `/thumbnails/${setName}/${file}`
+        thumbnail: `/api/fast-thumbnails/${setName}/${file}`
       });
     }
     // メタデータをJSONファイルとして保存

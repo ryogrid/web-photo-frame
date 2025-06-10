@@ -231,23 +231,27 @@ function App() {
           )}
         </div>
       )}
-      {/* スクロール先頭・末尾ボタン */}
-      <button
-        onClick={scrollToFirst}
-        className="fixed bottom-24 right-4 bg-black/50 text-white rounded-full p-3 mb-2 shadow-lg hover:bg-black/70 transition-colors z-30"
-        style={{backdropFilter: 'blur(4px)'}}
-        aria-label="最初に移動"
-      >
-        ⬆
-      </button>
-      <button
-        onClick={scrollToLast}
-        className="fixed bottom-4 right-4 bg-black/50 text-white rounded-full p-3 shadow-lg hover:bg-black/70 transition-colors z-30"
-        style={{backdropFilter: 'blur(4px)'}}
-        aria-label="最後に移動"
-      >
-        ⬇
-      </button>
+      {/* スクロール先頭・末尾ボタン（サムネイルモードでのみ表示）*/}
+      {!isSlideshow && (
+        <>
+          <button
+            onClick={scrollToFirst}
+            className="fixed bottom-24 right-4 bg-black/50 text-white rounded-full p-3 mb-2 shadow-lg hover:bg-black/70 transition-colors z-30"
+            style={{backdropFilter: 'blur(4px)'}}
+            aria-label="最初に移動"
+          >
+            ⬆
+          </button>
+          <button
+            onClick={scrollToLast}
+            className="fixed bottom-4 right-4 bg-black/50 text-white rounded-full p-3 shadow-lg hover:bg-black/70 transition-colors z-30"
+            style={{backdropFilter: 'blur(4px)'}}
+            aria-label="最後に移動"
+          >
+            ⬇
+          </button>
+        </>
+      )}
     </div>
   );
 }

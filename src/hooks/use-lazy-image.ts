@@ -6,6 +6,7 @@ interface UseLazyImageProps {
   src: string;
   thumbnail?: string;
   alt: string;
+  retryKey?: number; // リトライ用のキー
 }
 
 interface UseLazyImageResult {
@@ -14,7 +15,7 @@ interface UseLazyImageResult {
   imageSrc: string | null;
 }
 
-export function useLazyImage({ src, thumbnail }: UseLazyImageProps): UseLazyImageResult {
+export function useLazyImage({ src, thumbnail, retryKey = 0 }: UseLazyImageProps): UseLazyImageResult {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [imageSrc, setImageSrc] = useState<string | null>(null);
@@ -98,7 +99,7 @@ export function useLazyImage({ src, thumbnail }: UseLazyImageProps): UseLazyImag
         clearTimeout(retryTimeoutId);
       }
     };
-  }, [src, thumbnail]);
+  }, [src, thumbnail, retryKey]); // retryKeyを依存配列に追加
 
   // コンポーネントアンマウント時のクリーンアップ
   useEffect(() => {
