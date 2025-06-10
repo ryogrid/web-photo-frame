@@ -33,8 +33,12 @@ function App() {
     globalRequestQueue.setSetKey();
     // 一時的にSimpleObjectURLManager無効化
     // simpleObjectURLManager.clear(); // シンプルObjectURL管理をクリア
-    setCurrentIndex(0);
+    
+    // スライドショーの状態を完全にリセット
     setIsPlaying(false);
+    setCurrentIndex(0);
+    
+    console.log(`Changed to image set: ${currentSetIndex}, reset to index 0`);
   }, [currentSetIndex]);
 
   React.useEffect(() => {
@@ -46,7 +50,12 @@ function App() {
 
     if (isPlaying && images.length > 0) {
       const interval = window.setInterval(() => {
-        setCurrentIndex((prevIndex) => (prevIndex + 1) % images.length);
+        setCurrentIndex((prevIndex) => {
+          const nextIndex = (prevIndex + 1) % images.length;
+          // デバッグ用ログ（開発時に有用）
+          console.log(`Slideshow: ${prevIndex} → ${nextIndex} (total: ${images.length})`);
+          return nextIndex;
+        });
       }, 5000);
       setSlideshowInterval(interval);
     }
@@ -57,7 +66,7 @@ function App() {
         setSlideshowInterval(null);
       }
     }
-  }, [isPlaying, images.length]);
+  }, [isPlaying, images]);
 
   const goToPrevious = () => {
     setCurrentIndex((prevIndex) => (prevIndex - 1 + images.length) % images.length);
