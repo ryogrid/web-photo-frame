@@ -15,7 +15,7 @@ export class RequestQueue {
   private running: number = 0;
   private queue: QueueItem<any>[] = [];
 
-  constructor(concurrency: number = 3) {
+  constructor(concurrency: number = 10) {
     this.concurrency = concurrency;
   }
 
@@ -60,4 +60,4 @@ export class RequestQueue {
 }
 
 // グローバルなキューインスタンスを作成
-export const globalRequestQueue = new RequestQueue(10); // 例: 同時10件まで 
+export const globalRequestQueue = new RequestQueue(10); // 同時10件まで（元の設定に戻す） 

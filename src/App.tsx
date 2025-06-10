@@ -6,6 +6,7 @@ import { usePhotoSetNames } from '@/lib/lazy-image-utils'
 import { useImagesForImageSet } from '@/lib/image-utils'
 import { LazyImage } from './components/lazy-image'
 import { globalRequestQueue } from './lib/RequestQueue'
+// import { simpleObjectURLManager } from './lib/SimpleObjectURLManager'
 
 function App() {
   const { setNames, loading: setsLoading, error: setsError } = usePhotoSetNames();
@@ -20,27 +21,40 @@ function App() {
 
   const thumbGridRef = useRef<HTMLDivElement>(null);
 
+  // アプリケーション終了時のクリーンアップ（一時的に無効化）
+  // React.useEffect(() => {
+  //   return () => {
+  //     simpleObjectURLManager.clear();
+  //   };
+  // }, []);
+
   // Reset image index and slideshow when set changes
   React.useEffect(() => {
     globalRequestQueue.setSetKey();
+    // 一時的にSimpleObjectURLManager無効化
+    // simpleObjectURLManager.clear(); // シンプルObjectURL管理をクリア
     setCurrentIndex(0);
     setIsPlaying(false);
   }, [currentSetIndex]);
 
   React.useEffect(() => {
+    // 既存のインターバルをクリア
+    if (slideshowInterval !== null) {
+      clearInterval(slideshowInterval);
+      setSlideshowInterval(null);
+    }
+
     if (isPlaying && images.length > 0) {
       const interval = window.setInterval(() => {
         setCurrentIndex((prevIndex) => (prevIndex + 1) % images.length);
       }, 5000);
       setSlideshowInterval(interval);
-    } else if (slideshowInterval !== null) {
-      clearInterval(slideshowInterval);
-      setSlideshowInterval(null);
     }
 
     return () => {
       if (slideshowInterval !== null) {
         clearInterval(slideshowInterval);
+        setSlideshowInterval(null);
       }
     }
   }, [isPlaying, images.length]);

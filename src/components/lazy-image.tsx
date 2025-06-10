@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState } from 'react';
 import { useLazyImage } from '../hooks/use-lazy-image';
+// import { thumbnailMemoryManager } from '../lib/ThumbnailMemoryManager';
 
 interface LazyImageProps {
   src: string;
@@ -21,15 +22,23 @@ export function LazyImage({ src, thumbnail, alt, className, onClick }: LazyImage
   
   useEffect(() => {
     let timer: NodeJS.Timeout | null = null;
+    const currentElement = imgRef.current;
+    // const url = thumbnail || src;
+    
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          if (entry.isIntersecting) {
+          const isVisible = entry.isIntersecting;
+          
+          // 一時的にメモリマネージャーへの通知を無効化
+          // thumbnailMemoryManager.updateVisibility(url, isVisible);
+          
+          if (isVisible) {
             if (!timer) {
               timer = setTimeout(() => {
                 setIsIntersecting(true);
                 observer.disconnect();
-              }, 1000); // 1000ms以上表示されていた場合のみロード
+              }, 500);
             }
           } else {
             if (timer) {
@@ -40,22 +49,25 @@ export function LazyImage({ src, thumbnail, alt, className, onClick }: LazyImage
         });
       },
       {
-        rootMargin: '0px', // 画面に入ったときのみ
-        threshold: 0.1,    // 10%以上表示されたとき
+        rootMargin: '100px', // より早めにロード開始
+        threshold: 0.1,
       }
     );
     
-    if (imgRef.current) {
-      observer.observe(imgRef.current);
+    if (currentElement) {
+      observer.observe(currentElement);
     }
     
     return () => {
       observer.disconnect();
       if (timer) {
         clearTimeout(timer);
+        timer = null;
       }
+      // 一時的にメモリマネージャーへの通知を無効化
+      // thumbnailMemoryManager.updateVisibility(url, false);
     };
-  }, []);
+  }, [src, thumbnail]);
   
   return (
     <div 
