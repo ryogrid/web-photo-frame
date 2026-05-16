@@ -241,11 +241,26 @@ function App() {
             ) : imagesError ? (
               <p className="text-xl text-red-500">{imagesError}</p>
             ) : displayImages.length > 0 ? (
-              displayImages.map((img, idx) => (
-                <div key={idx} className="cursor-pointer" onClick={() => selectImage(idx)}>
-                  <LazyImage src={img.thumbnail || img.src} alt={img.alt} className="w-40 h-40 object-cover" />
-                </div>
-              ))
+              displayImages.map((img, idx) => {
+                const thumbFilename = img.filename || img.src.split('/').pop() || img.alt;
+                const thumbPrefix = extractPrefix(thumbFilename);
+                const thumbState = prefixStates[thumbPrefix];
+                return (
+                  <div key={idx} className="cursor-pointer relative" onClick={() => selectImage(idx)}>
+                    <LazyImage src={img.thumbnail || img.src} alt={img.alt} className="w-40 h-40 object-cover" />
+                    <div className="absolute top-0.5 right-0.5">
+                      <FavoriteButton
+                        filename={thumbFilename}
+                        state={thumbState}
+                        onAdd={addFavorite}
+                        onRemove={removeFavorite}
+                        onReactivate={reactivateFavorite}
+                        size={14}
+                      />
+                    </div>
+                  </div>
+                );
+              })
             ) : (
               <p className="text-xl">No images found in this set.</p>
             )}

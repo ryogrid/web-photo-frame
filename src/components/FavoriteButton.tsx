@@ -7,9 +7,11 @@ interface FavoriteButtonProps {
   onAdd: (prefix: string) => void;
   onRemove: (prefix: string) => void;
   onReactivate: (prefix: string) => void;
+  size?: number;
+  className?: string;
 }
 
-export function FavoriteButton({ filename, state, onAdd, onRemove, onReactivate }: FavoriteButtonProps) {
+export function FavoriteButton({ filename, state, onAdd, onRemove, onReactivate, size = 24, className = '' }: FavoriteButtonProps) {
   const prefix = extractPrefix(filename);
 
   const handleClick = (e: React.MouseEvent) => {
@@ -24,15 +26,16 @@ export function FavoriteButton({ filename, state, onAdd, onRemove, onReactivate 
   };
 
   const isActive = state === 'favorite';
+  const pad = size >= 20 ? 'p-2' : 'p-0.5';
 
   return (
     <button
       onClick={handleClick}
-      className="p-2 bg-black/50 rounded-full hover:bg-black/70 transition-colors z-20"
+      className={`${pad} bg-black/50 rounded-full hover:bg-black/70 transition-colors z-20 ${className}`}
       title={isActive ? 'Remove from favorites' : state === 'oldfav' ? 'Restore to favorites' : 'Add to favorites'}
     >
       <Star
-        size={24}
+        size={size}
         className={isActive ? 'text-yellow-400' : 'text-white'}
         fill={isActive ? 'currentColor' : 'none'}
       />
