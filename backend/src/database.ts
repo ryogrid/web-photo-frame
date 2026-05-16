@@ -1,0 +1,139 @@
+import Database from 'better-sqlite3';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const DATA_DIR = path.resolve(__dirname, '..', 'data');
+const DB_PATH = path.join(DATA_DIR, 'favorites.db');
+
+let db: Database.Database | null = null;
+
+export function getDatabase(): Database.Database {
+  if (db) return db;
+
+  if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  }
+
+  db = new Database(DB_PATH);
+  db.pragma('journal_mode = WAL');
+  db.pragma('foreign_keys = ON');
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS prefixes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      prefix TEXT NOT NULL UNIQUE
+    );
+
+    CREATE TABLE IF NOT EXISTS images (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      prefix_id INTEGER NOT NULL REFERENCES prefixes(id),
+      directory TEXT NOT NULL,
+      filename TEXT NOT NULL,
+      UNIQUE(prefix_id, directory, filename)
+    );
+
+    CREATE TABLE IF NOT EXISTS favorite_state (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      prefix_id INTEGER NOT NULL UNIQUE REFERENCES prefixes(id),
+      state TEXT NOT NULL CHECK(state IN ('favorite', 'oldfav'))
+    );
+  `);
+
+  return db;
+}
+
+// Extract prefix from filename: everything before the first hyphen, trimmed.
+// If no hyphen, the entire basename (minus extension) is the prefix.
+export function extractPrefix(filename: string): string {
+  // Remove directory path if present, keep just the filename
+  const basename = path.basename(filename);
+  const nameWithoutExt = basename.replace(/\.[^/.]+$/, '');
+  const hyphenIndex = nameWithoutExt.indexOf('-');
+  if (hyphenIndex !== -1) {
+    return nameWithoutExt.substring(0, hyphenIndex).trim();
+  }
+  return nameWithoutExt.trim();
+}
+
+export function getPrefixId(database: Database.Database, prefix: string): number {
+  const row = database.prepare('SELECT id FROM prefixes WHERE prefix = ?').get(prefix) as { id: number } | undefined;
+  if (row) return row.id;
+  const result = database.prepare('INSERT INTO prefixes (prefix) VALUES (?)').run(prefix);
+  return Number(result.lastInsertRowid);
+}
+
+export function getPrefixById(database: Database.Database, id: number): string | undefined {
+  const row = database.prepare('SELECT prefix FROM prefixes WHERE id = ?').get(id) as { prefix: string } | undefined;
+  return row?.prefix;
+}
+
+export function upsertFavoriteState(database: Database.Database, prefix: string, state: 'favorite' | 'oldfav'): void {
+  const prefixId = getPrefixId(database, prefix);
+  database.prepare(`
+    INSERT INTO favorite_state (prefix_id, state) VALUES (?, ?)
+    ON CONFLICT(prefix_id) DO UPDATE SET state = excluded.state
+  `).run(prefixId, state);
+}
+
+export function getFavoriteState(database: Database.Database, prefix: string): 'favorite' | 'oldfav' | null {
+  const row = database.prepare(`
+    SELECT s.state FROM favorite_state s
+    JOIN prefixes p ON p.id = s.prefix_id
+    WHERE p.prefix = ?
+  `).get(prefix) as { state: 'favorite' | 'oldfav' } | undefined;
+  return row?.state ?? null;
+}
+
+export function getPrefixStates(database: Database.Database): Record<string, 'favorite' | 'oldfav'> {
+  const rows = database.prepare(`
+    SELECT p.prefix, s.state FROM favorite_state s
+    JOIN prefixes p ON p.id = s.prefix_id
+  `).all() as { prefix: string; state: 'favorite' | 'oldfav' }[];
+  const result: Record<string, 'favorite' | 'oldfav'> = {};
+  for (const row of rows) {
+    result[row.prefix] = row.state;
+  }
+  return result;
+}
+
+export function insertImage(database: Database.Database, prefix: string, directory: string, filename: string): void {
+  const prefixId = getPrefixId(database, prefix);
+  database.prepare(`
+    INSERT OR IGNORE INTO images (prefix_id, directory, filename) VALUES (?, ?, ?)
+  `).run(prefixId, directory, filename);
+}
+
+export function getImagesByState(database: Database.Database, state: 'favorite' | 'oldfav'): Array<{
+  src: string;
+  alt: string;
+  filename: string;
+  prefix: string;
+}> {
+  const rows = database.prepare(`
+    SELECT i.directory, i.filename, p.prefix
+    FROM images i
+    JOIN prefixes p ON p.id = i.prefix_id
+    JOIN favorite_state s ON s.prefix_id = p.id
+    WHERE s.state = ?
+    ORDER BY p.prefix, i.directory, i.filename
+  `).all(state) as Array<{ directory: string; filename: string; prefix: string }>;
+
+  return rows.map((row) => ({
+    src: `/api/fast-pictures/${row.directory}/${row.filename}`,
+    alt: row.filename.replace(/\.[^/.]+$/, ''),
+    filename: row.filename,
+    prefix: row.prefix,
+  }));
+}
+
+// Close the database connection (useful for worker processes)
+export function closeDatabase(): void {
+  if (db) {
+    db.close();
+    db = null;
+  }
+}

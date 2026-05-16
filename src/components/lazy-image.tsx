@@ -11,50 +11,78 @@ interface LazyImageProps {
 
 export function LazyImage({ src, thumbnail, alt, className, onClick }: LazyImageProps) {
   const [isIntersecting, setIsIntersecting] = useState(false);
-  const [retryKey, setRetryKey] = useState(0); // Retry counter
+  const [retryKey, setRetryKey] = useState(0);
+  const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
   const imgRef = useRef<HTMLDivElement>(null);
-  
+  const hasEnteredRef = useRef(false);
+
   const { isLoading, error, imageSrc } = useLazyImage({
     src,
     thumbnail,
     alt,
-    retryKey, // Pass retry key to trigger useEffect re-execution
+    retryKey,
+    active: isIntersecting,
   });
-  
+
+  // Cache successfully loaded image
+  useEffect(() => {
+    if (imageSrc) {
+      setLoadedSrc(imageSrc);
+    }
+  }, [imageSrc]);
+
+  // Reset loadedSrc and retryKey when src/thumbnail changes
+  useEffect(() => {
+    setLoadedSrc(null);
+    setRetryKey(0);
+    hasEnteredRef.current = false;
+    setIsIntersecting(false);
+  }, [src, thumbnail]);
+
   useEffect(() => {
     let timer: NodeJS.Timeout | null = null;
     const currentElement = imgRef.current;
-    
+
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          const isVisible = entry.isIntersecting;
-          
-          if (isVisible) {
-            if (!timer) {
-              timer = setTimeout(() => {
-                setIsIntersecting(true);
-                observer.disconnect();
-              }, 500);
+          if (entry.isIntersecting) {
+            if (!hasEnteredRef.current) {
+              // First time entering — wait for delay before loading
+              if (!timer) {
+                timer = setTimeout(() => {
+                  setIsIntersecting(true);
+                  hasEnteredRef.current = true;
+                }, 500);
+              }
+            } else {
+              // Re-entering after leaving — resume immediately
+              if (timer) {
+                clearTimeout(timer);
+                timer = null;
+              }
+              setIsIntersecting(true);
             }
           } else {
             if (timer) {
               clearTimeout(timer);
               timer = null;
             }
+            // Cancel loading when element leaves viewport
+            setIsIntersecting(false);
           }
         });
       },
       {
-        rootMargin: '100px', // Start loading earlier
+        rootMargin: '100px',
         threshold: 0.1,
       }
     );
-    
+
     if (currentElement) {
       observer.observe(currentElement);
     }
-    
+
     return () => {
       observer.disconnect();
       if (timer) {
@@ -66,35 +94,33 @@ export function LazyImage({ src, thumbnail, alt, className, onClick }: LazyImage
 
   // Automatic retry on error
   useEffect(() => {
-    if (error && retryKey < 3) { // Maximum 3 retries
+    if (error && retryKey < 3 && isIntersecting) {
       const retryTimer = setTimeout(() => {
         console.log(`Retrying image load (attempt ${retryKey + 1}):`, thumbnail || src);
         setRetryKey(prev => prev + 1);
-      }, 1000); // Wait 1 second
+      }, 1000);
 
       return () => {
         clearTimeout(retryTimer);
       };
     }
-  }, [error, retryKey, src, thumbnail]);
+  }, [error, retryKey, src, thumbnail, isIntersecting]);
 
-  // Reset retry counter when src/thumbnail changes
-  useEffect(() => {
-    setRetryKey(0);
-  }, [src, thumbnail]);
-  
+  // Determine what to render
+  const showImage = loadedSrc || imageSrc;
+
   return (
-    <div 
+    <div
       ref={imgRef}
       className="w-full h-full"
       onClick={onClick}
     >
       {isIntersecting ? (
-        isLoading ? (
+        isLoading && !showImage ? (
           <div className="w-full h-full flex items-center justify-center bg-gray-800">
             <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-white"></div>
           </div>
-        ) : error ? (
+        ) : error && !showImage ? (
           <div className="w-full h-full flex items-center justify-center bg-gray-800 text-red-500">
             {retryKey < 3 ? (
               <div className="text-center">
@@ -105,13 +131,21 @@ export function LazyImage({ src, thumbnail, alt, className, onClick }: LazyImage
               <span>Error loading image</span>
             )}
           </div>
-        ) : (
-          <img 
-            src={imageSrc || ''} 
-            alt={alt} 
+        ) : showImage ? (
+          <img
+            src={showImage}
+            alt={alt}
             className={className}
           />
+        ) : (
+          <div className="w-full h-full bg-gray-800"></div>
         )
+      ) : showImage ? (
+        <img
+          src={showImage}
+          alt={alt}
+          className={className}
+        />
       ) : (
         <div className="w-full h-full bg-gray-800"></div>
       )}

@@ -5,6 +5,7 @@ import cors from 'cors';
 import compression from 'compression';
 import imageRoutes from './routes/image-routes.js';
 import staticRoutes from './routes/static-routes.js';
+import favoriteRoutes from './routes/favorite-routes.js';
 
 const app = express();
 const PORT = 3000;
@@ -53,6 +54,7 @@ app.use('/thumbnails', express.static(THUMBNAILS_DIR, staticOptions));
 
 app.use('/api', imageRoutes);
 app.use('/api', staticRoutes); // Fast static file serving
+app.use('/api', favoriteRoutes); // Favorites management
 
 app.get('*', (req, res) => {
   res.sendFile(path.join(FRONTEND_BUILD_DIR, 'index.html'));

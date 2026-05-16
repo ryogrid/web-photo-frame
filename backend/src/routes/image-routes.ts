@@ -4,6 +4,7 @@ import fs from 'fs';
 import { promises as fsPromises } from 'fs';
 import sharp from 'sharp';
 import { Image, ImageSet } from '../types.js';
+import { getDatabase, getImagesByState } from '../database.js';
 
 const router = express.Router();
 
@@ -48,6 +49,15 @@ router.get('/photo-sets', async (req, res) => {
 router.get('/image-sets/:setName', (async (req: Request<{ setName: string }>, res: Response) => {
   try {
     const setName = req.params.setName;
+
+    // Handle virtual sets: favorites and old favorites
+    if (setName === '__favorites__' || setName === '__oldfav__') {
+      const state = setName === '__favorites__' ? 'favorite' : 'oldfav';
+      const db = getDatabase();
+      const images = getImagesByState(db, state);
+      return res.json(images);
+    }
+
     const PICTURES_DIR = path.join(process.cwd(), '../public/pictures');
     const THUMBNAILS_DIR = path.join(process.cwd(), '../public/thumbnails');
     const dirPath = path.join(PICTURES_DIR, setName);

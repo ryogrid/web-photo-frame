@@ -4,6 +4,8 @@ export interface Image {
   src: string;
   alt: string;
   thumbnail?: string;
+  filename?: string;
+  prefix?: string;
 }
 
 export interface ImageSet {
@@ -16,7 +18,7 @@ export function getDirectoryName(path: string): string {
   return name.charAt(0).toUpperCase() + name.slice(1);
 }
 
-// New API: Fetch image list for a given image set name
+// API: Fetch image list for a given image set name
 export async function fetchImagesForImageSet(setName: string): Promise<Image[]> {
   const response = await fetch(`/api/image-sets/${encodeURIComponent(setName)}`);
   if (!response.ok) {
@@ -25,8 +27,9 @@ export async function fetchImagesForImageSet(setName: string): Promise<Image[]> 
   return await response.json();
 }
 
-// Custom hook: Get image list for specified set name
-export function useImagesForImageSet(setName: string | null) {
+// Custom hook: Get image list for specified set name.
+// Use refreshKey to trigger re-fetch without changing setName.
+export function useImagesForImageSet(setName: string | null, refreshKey: number = 0) {
   const [images, setImages] = useState<Image[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -39,7 +42,7 @@ export function useImagesForImageSet(setName: string | null) {
       .then(setImages)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [setName]);
+  }, [setName, refreshKey]);
 
   return { images, loading, error };
 }
