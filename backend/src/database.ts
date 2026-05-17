@@ -107,12 +107,20 @@ export function insertImage(database: Database.Database, prefix: string, directo
   `).run(prefixId, directory, filename);
 }
 
-export function getImagesByState(database: Database.Database, state: 'favorite' | 'oldfav'): Array<{
-  src: string;
-  alt: string;
-  filename: string;
-  prefix: string;
-}> {
+export function getImagesByState(
+  database: Database.Database,
+  state: 'favorite' | 'oldfav',
+  limit?: number,
+  offset?: number
+): { images: Array<{ src: string; alt: string; filename: string; prefix: string }>; total: number } {
+  const countRow = database.prepare(`
+    SELECT COUNT(*) as count
+    FROM images i
+    JOIN prefixes p ON p.id = i.prefix_id
+    JOIN favorite_state s ON s.prefix_id = p.id
+    WHERE s.state = ?
+  `).get(state) as { count: number };
+
   const rows = database.prepare(`
     SELECT i.directory, i.filename, p.prefix
     FROM images i
@@ -120,14 +128,25 @@ export function getImagesByState(database: Database.Database, state: 'favorite' 
     JOIN favorite_state s ON s.prefix_id = p.id
     WHERE s.state = ?
     ORDER BY p.prefix, i.directory, i.filename
-  `).all(state) as Array<{ directory: string; filename: string; prefix: string }>;
+    ${limit != null ? 'LIMIT ?' : ''}
+    ${offset != null ? 'OFFSET ?' : ''}
+  `);
 
-  return rows.map((row) => ({
-    src: `/api/fast-pictures/${row.directory}/${row.filename}`,
-    alt: row.filename.replace(/\.[^/.]+$/, ''),
-    filename: row.filename,
-    prefix: row.prefix,
-  }));
+  const bindParams: unknown[] = [state];
+  if (limit != null) bindParams.push(limit);
+  if (offset != null) bindParams.push(offset);
+
+  const rowsResult = rows.all(...bindParams) as Array<{ directory: string; filename: string; prefix: string }>;
+
+  return {
+    images: rowsResult.map((row) => ({
+      src: `/api/fast-pictures/${row.directory}/${row.filename}`,
+      alt: row.filename.replace(/\.[^/.]+$/, ''),
+      filename: row.filename,
+      prefix: row.prefix,
+    })),
+    total: countRow.count,
+  };
 }
 
 // Close the database connection (useful for worker processes)

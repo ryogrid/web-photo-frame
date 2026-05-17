@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useRef, useEffect } from 'react'
 import './App.css'
 import { ChevronLeft, ChevronRight, Play, Pause } from 'lucide-react'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -22,7 +22,7 @@ function App() {
     ? activeTab
     : setNames[parseInt(activeTab)] || '';
 
-  const { images, loading: imagesLoading, error: imagesError } = useImagesForImageSet(currentSetName, refreshKey);
+  const { images, loading: imagesLoading, error: imagesError, hasMore, loadMore } = useImagesForImageSet(currentSetName, refreshKey);
 
   // Apply sorting for favorites tab
   const sortedImages = useMemo(() => {
@@ -52,6 +52,24 @@ function App() {
     }, 5000);
     return () => clearInterval(interval);
   }, [isPlaying, displayImages.length]);
+
+  const gridRef = useRef<HTMLDivElement>(null);
+
+  // Infinite scroll for virtual sets
+  useEffect(() => {
+    const grid = gridRef.current;
+    if (!grid || !hasMore) return;
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = grid;
+      if (scrollHeight - scrollTop - clientHeight < 500) {
+        loadMore();
+      }
+    };
+
+    grid.addEventListener('scroll', handleScroll, { passive: true });
+    return () => grid.removeEventListener('scroll', handleScroll);
+  }, [hasMore, loadMore]);
 
   const goToPrevious = () => {
     setCurrentIndex((prevIndex) => (prevIndex - 1 + displayImages.length) % displayImages.length);
@@ -235,7 +253,7 @@ function App() {
         </div>
       ) : (
         <>
-          <div className="flex-1 p-4 grid gap-2 bg-gray-900 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900" style={{gridTemplateColumns: 'repeat(auto-fit, minmax(10rem, 1fr))', display: 'grid', maxHeight: '100vh'}}>
+          <div ref={gridRef} className="flex-1 p-4 grid gap-2 bg-gray-900 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900" style={{gridTemplateColumns: 'repeat(auto-fit, minmax(10rem, 1fr))', display: 'grid', maxHeight: '100vh'}}>
             {imagesLoading ? (
               <p className="text-xl">Loading images...</p>
             ) : imagesError ? (

@@ -54,8 +54,10 @@ router.get('/image-sets/:setName', (async (req: Request<{ setName: string }>, re
     if (setName === '__favorites__' || setName === '__oldfav__') {
       const state = setName === '__favorites__' ? 'favorite' : 'oldfav';
       const db = getDatabase();
-      const images = getImagesByState(db, state);
-      return res.json(images);
+      const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
+      const offset = req.query.offset ? parseInt(req.query.offset as string, 10) : undefined;
+      const result = getImagesByState(db, state, limit, offset);
+      return res.json({ images: result.images, total: result.total, offset: offset || 0 });
     }
 
     const PICTURES_DIR = path.join(process.cwd(), '../public/pictures');
