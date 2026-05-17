@@ -4,7 +4,7 @@ import fs from 'fs';
 import { promises as fsPromises } from 'fs';
 import sharp from 'sharp';
 import { Image, ImageSet } from '../types.js';
-import { getDatabase, getImagesByState } from '../database.js';
+import { getDatabase, getImagesByState, getImagesByStateShuffled } from '../database.js';
 
 const router = express.Router();
 
@@ -56,6 +56,22 @@ router.get('/image-sets/:setName', (async (req: Request<{ setName: string }>, re
       const db = getDatabase();
       const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
       const offset = req.query.offset ? parseInt(req.query.offset as string, 10) : undefined;
+      const sort = req.query.sort as string | undefined;
+      const seed = req.query.seed ? parseInt(req.query.seed as string, 10) : undefined;
+
+      if (sort === 'random') {
+        const effectiveSeed = seed ?? Math.floor(Math.random() * 2147483647);
+        const effectiveLimit = limit ?? 100;
+        const effectiveOffset = offset ?? 0;
+        const result = getImagesByStateShuffled(db, state, effectiveSeed, effectiveLimit, effectiveOffset);
+        return res.json({
+          images: result.images,
+          total: result.total,
+          offset: effectiveOffset,
+          seed: effectiveSeed,
+        });
+      }
+
       const result = getImagesByState(db, state, limit, offset);
       return res.json({ images: result.images, total: result.total, offset: offset || 0 });
     }

@@ -156,3 +156,53 @@ export function closeDatabase(): void {
     db = null;
   }
 }
+
+// Seeded PRNG (mulberry32) for deterministic shuffle
+function mulberry32(seed: number): () => number {
+  return function() {
+    seed |= 0;
+    seed = seed + 0x6D2B79F5 | 0;
+    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+function seededShuffle<T>(arr: T[], seed: number): T[] {
+  const rng = mulberry32(seed);
+  const result = [...arr];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
+
+export function getImagesByStateShuffled(
+  database: Database.Database,
+  state: 'favorite' | 'oldfav',
+  seed: number,
+  limit: number,
+  offset: number
+): { images: Array<{ src: string; alt: string; filename: string; prefix: string }>; total: number } {
+  const allRows = database.prepare(`
+    SELECT i.directory, i.filename, p.prefix
+    FROM images i
+    JOIN prefixes p ON p.id = i.prefix_id
+    JOIN favorite_state s ON s.prefix_id = p.id
+    WHERE s.state = ?
+  `).all(state) as Array<{ directory: string; filename: string; prefix: string }>;
+
+  const shuffled = seededShuffle(allRows, seed);
+  const page = shuffled.slice(offset, offset + limit);
+
+  return {
+    images: page.map((row) => ({
+      src: `/api/fast-pictures/${row.directory}/${row.filename}`,
+      alt: row.filename.replace(/\.[^/.]+$/, ''),
+      filename: row.filename,
+      prefix: row.prefix,
+    })),
+    total: allRows.length,
+  };
+}

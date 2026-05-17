@@ -22,20 +22,10 @@ function App() {
     ? activeTab
     : setNames[parseInt(activeTab)] || '';
 
-  const { images, loading: imagesLoading, error: imagesError, hasMore, loadMore } = useImagesForImageSet(currentSetName, refreshKey);
+  const effectiveSortMode = activeTab === '__favorites__' ? sortMode : 'author';
+  const { images, loading: imagesLoading, error: imagesError, hasMore, loadMore } = useImagesForImageSet(currentSetName, refreshKey, effectiveSortMode);
 
-  // Apply sorting for favorites tab
-  const sortedImages = useMemo(() => {
-    if (activeTab !== '__favorites__' || sortMode !== 'random') return images;
-    const shuffled = [...images];
-    for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-    }
-    return shuffled;
-  }, [images, activeTab, sortMode]);
-
-  const displayImages = sortedImages;
+  const displayImages = images;
 
   // Reset image index and slideshow when set changes
   React.useEffect(() => {
@@ -54,8 +44,10 @@ function App() {
   }, [isPlaying, displayImages.length]);
 
   const gridRef = useRef<HTMLDivElement>(null);
+  const loadMoreRef = useRef(loadMore);
+  loadMoreRef.current = loadMore;
 
-  // Infinite scroll for virtual sets
+  // Infinite scroll for virtual sets (thumbnail mode)
   useEffect(() => {
     const grid = gridRef.current;
     if (!grid || !hasMore) return;
@@ -63,13 +55,21 @@ function App() {
     const handleScroll = () => {
       const { scrollTop, scrollHeight, clientHeight } = grid;
       if (scrollHeight - scrollTop - clientHeight < 500) {
-        loadMore();
+        loadMoreRef.current();
       }
     };
 
     grid.addEventListener('scroll', handleScroll, { passive: true });
     return () => grid.removeEventListener('scroll', handleScroll);
-  }, [hasMore, loadMore]);
+  }, [hasMore]);
+
+  // Prefetch upcoming images when slideshow nears the end of loaded set
+  useEffect(() => {
+    if (!isSlideshow || !hasMore || displayImages.length === 0) return;
+    if (currentIndex >= displayImages.length - 5) {
+      loadMoreRef.current();
+    }
+  }, [currentIndex, displayImages.length, isSlideshow, hasMore]);
 
   const goToPrevious = () => {
     setCurrentIndex((prevIndex) => (prevIndex - 1 + displayImages.length) % displayImages.length);
@@ -185,7 +185,7 @@ function App() {
       {/* Main content */}
       {isSlideshow ? (
         <div className="relative flex-1 flex items-center justify-center">
-          {imagesLoading ? (
+          {imagesLoading && displayImages.length === 0 ? (
             <p className="text-xl">Loading images...</p>
           ) : imagesError ? (
             <p className="text-xl text-red-500">{imagesError}</p>
@@ -254,7 +254,7 @@ function App() {
       ) : (
         <>
           <div ref={gridRef} className="flex-1 p-4 grid gap-2 bg-gray-900 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900" style={{gridTemplateColumns: 'repeat(auto-fit, minmax(10rem, 1fr))', display: 'grid', maxHeight: '100vh'}}>
-            {imagesLoading ? (
+            {imagesLoading && displayImages.length === 0 ? (
               <p className="text-xl">Loading images...</p>
             ) : imagesError ? (
               <p className="text-xl text-red-500">{imagesError}</p>
