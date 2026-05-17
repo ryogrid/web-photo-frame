@@ -61,6 +61,6 @@ export default defineConfig({
       },
     }
   },
-  publicDir: false,
+  publicDir: "pwa-assets",
 })
 
