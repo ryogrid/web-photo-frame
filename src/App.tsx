@@ -1,6 +1,6 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react'
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import './App.css'
-import { ChevronLeft, ChevronRight, Play, Pause } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronsRight, Play, Pause } from 'lucide-react'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Slider } from '@/components/ui/slider'
 import { usePhotoSetNames } from '@/lib/lazy-image-utils'
@@ -9,10 +9,18 @@ import { LazyImage } from './components/lazy-image'
 import { FavoriteButton } from './components/FavoriteButton'
 import { useFavorites, extractPrefix } from './lib/favorites-utils'
 import { globalRequestQueue } from './lib/RequestQueue'
+import { isIPadWebKit, isMemoryConstrainedWebKit } from './lib/device-utils'
 
 // Slideshow interval steps (ms); default is the centered value.
 const INTERVAL_STEPS = [1000, 3000, 5000, 7000, 9000];
 const DEFAULT_INTERVAL_INDEX = 2;
+const SLIDESHOW_CONTROLS_TOUCH_TIMEOUT_MS = 2200;
+const SHOULD_DISABLE_BLOB_PREFETCH = isMemoryConstrainedWebKit();
+const SHOULD_USE_IPAD_NATIVE_SLIDESHOW = isIPadWebKit();
+
+function getImageDisplayName(image: { filename?: string; src: string; alt: string }) {
+  return image.filename || image.src.split('/').pop() || image.alt;
+}
 
 function App() {
   const { setNames, loading: setsLoading, error: setsError } = usePhotoSetNames();
@@ -24,6 +32,7 @@ function App() {
   const [sortMode, setSortMode] = useState<'author' | 'random'>('author');
   const [shuffleSeed, setShuffleSeed] = useState(0);
   const [intervalIndex, setIntervalIndex] = useState(DEFAULT_INTERVAL_INDEX);
+  const [showSlideshowOverlayControls, setShowSlideshowOverlayControls] = useState(false);
 
   const currentSetName = activeTab.startsWith('__')
     ? activeTab
@@ -43,6 +52,27 @@ function App() {
   }, [images, sortMode, isVirtualSet, shuffleSeed]);
 
   const prefetchedRef = useRef<Set<string>>(new Set());
+  const controlsHideTimeoutRef = useRef<number | null>(null);
+
+  const clearControlsHideTimeout = useCallback(() => {
+    if (controlsHideTimeoutRef.current !== null) {
+      window.clearTimeout(controlsHideTimeoutRef.current);
+      controlsHideTimeoutRef.current = null;
+    }
+  }, []);
+
+  const showSlideshowControls = useCallback(() => {
+    clearControlsHideTimeout();
+    setShowSlideshowOverlayControls(true);
+  }, [clearControlsHideTimeout]);
+
+  const hideSlideshowControlsSoon = useCallback(() => {
+    clearControlsHideTimeout();
+    controlsHideTimeoutRef.current = window.setTimeout(() => {
+      setShowSlideshowOverlayControls(false);
+      controlsHideTimeoutRef.current = null;
+    }, SLIDESHOW_CONTROLS_TOUCH_TIMEOUT_MS);
+  }, [clearControlsHideTimeout]);
 
   // Reset image index and slideshow when set changes
   React.useEffect(() => {
@@ -50,12 +80,16 @@ function App() {
     prefetchedRef.current.clear();
     setIsPlaying(false);
     setCurrentIndex(0);
+    setShowSlideshowOverlayControls(false);
+    clearControlsHideTimeout();
   }, [currentSetName]);
 
   // Reset index when the ordering changes (sort toggle / reshuffle)
   React.useEffect(() => {
     setCurrentIndex(0);
   }, [sortMode, shuffleSeed]);
+
+  useEffect(() => () => clearControlsHideTimeout(), [clearControlsHideTimeout]);
 
   // Slideshow timer
   React.useEffect(() => {
@@ -70,6 +104,7 @@ function App() {
   // by the time useLazyImage fetches the same URL when the slide advances.
   React.useEffect(() => {
     if (!isSlideshow || displayImages.length === 0) return;
+    if (SHOULD_DISABLE_BLOB_PREFETCH) return;
     for (let step = 1; step <= 2; step++) {
       const next = displayImages[(currentIndex + step) % displayImages.length];
       const url = next?.src;
@@ -139,6 +174,24 @@ function App() {
     setActiveTab(value);
   }
 
+  const handleSlideshowMouseEnter = () => {
+    showSlideshowControls();
+  }
+
+  const handleSlideshowMouseMove = () => {
+    showSlideshowControls();
+  }
+
+  const handleSlideshowMouseLeave = () => {
+    clearControlsHideTimeout();
+    setShowSlideshowOverlayControls(false);
+  }
+
+  const handleSlideshowTouchStart = () => {
+    showSlideshowControls();
+    hideSlideshowControlsSoon();
+  }
+
   // Build tab list: virtual tabs + photo set tabs
   const allTabs = useMemo(() => [
     { id: '__favorites__', label: '★ Favorites' },
@@ -148,10 +201,36 @@ function App() {
 
   // Get filename for the current slideshow image (for star button state)
   const currentImageFilename = displayImages.length > 0 && currentIndex < displayImages.length
-    ? (displayImages[currentIndex].filename || displayImages[currentIndex].src.split('/').pop() || displayImages[currentIndex].alt)
+    ? getImageDisplayName(displayImages[currentIndex])
     : '';
   const currentPrefix = currentImageFilename ? extractPrefix(currentImageFilename) : '';
   const currentStarState = currentPrefix ? prefixStates[currentPrefix] : undefined;
+
+  const nextAuthorStartIndex = useMemo(() => {
+    if (sortMode !== 'author' || displayImages.length < 2 || !currentPrefix) {
+      return null;
+    }
+
+    for (let step = 1; step < displayImages.length; step++) {
+      const candidateIndex = (currentIndex + step) % displayImages.length;
+      const candidatePrefix = extractPrefix(getImageDisplayName(displayImages[candidateIndex]));
+      if (candidatePrefix && candidatePrefix !== currentPrefix) {
+        return candidateIndex;
+      }
+    }
+
+    return null;
+  }, [currentIndex, currentPrefix, displayImages, sortMode]);
+
+  const jumpToNextAuthor = () => {
+    if (nextAuthorStartIndex !== null) {
+      setCurrentIndex(nextAuthorStartIndex);
+    }
+  }
+
+  const overlayControlClassName = showSlideshowOverlayControls
+    ? 'opacity-100 pointer-events-auto'
+    : 'opacity-0 pointer-events-none';
 
   if (setsLoading) {
     return (
@@ -226,7 +305,13 @@ function App() {
       )}
       {/* Main content */}
       {isSlideshow ? (
-        <div className="relative flex-1 flex items-center justify-center">
+        <div
+          className="relative flex-1 flex items-center justify-center"
+          onMouseEnter={handleSlideshowMouseEnter}
+          onMouseMove={handleSlideshowMouseMove}
+          onMouseLeave={handleSlideshowMouseLeave}
+          onTouchStart={handleSlideshowTouchStart}
+        >
           {imagesLoading && displayImages.length === 0 ? (
             <p className="text-xl">Loading images...</p>
           ) : imagesError ? (
@@ -238,6 +323,8 @@ function App() {
                   src={displayImages[currentIndex].src}
                   alt={displayImages[currentIndex].alt}
                   className="h-full w-full object-contain"
+                  preferDirectSrc={SHOULD_USE_IPAD_NATIVE_SLIDESHOW}
+                  disableInitialLoadDelay={SHOULD_USE_IPAD_NATIVE_SLIDESHOW}
                 />
               </div>
               {/* Left click/tap area for navigation */}
@@ -289,7 +376,7 @@ function App() {
                 <ChevronRight size={24} />
               </button>
               {/* Slideshow interval slider - subtle, bottom-center */}
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3 px-4 py-2 rounded-full bg-black/30 backdrop-blur-sm opacity-50 hover:opacity-100 transition-opacity">
+              <div className={`absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3 px-4 py-2 rounded-full bg-black/30 backdrop-blur-sm transition-opacity duration-200 ${overlayControlClassName}`}>
                 <Slider
                   min={0}
                   max={INTERVAL_STEPS.length - 1}
@@ -302,6 +389,16 @@ function App() {
                   {INTERVAL_STEPS[intervalIndex] / 1000}s
                 </span>
               </div>
+              {sortMode === 'author' && nextAuthorStartIndex !== null && (
+                <button
+                  onClick={jumpToNextAuthor}
+                  className={`absolute bottom-4 right-4 z-20 inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/20 px-3 py-2 text-xs text-gray-300 backdrop-blur-sm transition-all duration-200 hover:bg-black/35 hover:text-white ${overlayControlClassName}`}
+                  aria-label="Skip to first image of next author"
+                >
+                  <ChevronsRight size={14} />
+                  <span>Next author</span>
+                </button>
+              )}
             </>
           ) : (
             <p className="text-xl">No images found in this set.</p>

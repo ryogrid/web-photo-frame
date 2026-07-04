@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState } from 'react';
 import { useLazyImage } from '../hooks/use-lazy-image';
+import { isMemoryConstrainedWebKit } from '../lib/device-utils';
 
 interface LazyImageProps {
   src: string;
@@ -7,39 +8,61 @@ interface LazyImageProps {
   alt: string;
   className?: string;
   onClick?: () => void;
+  preferDirectSrc?: boolean;
+  disableInitialLoadDelay?: boolean;
 }
 
-export function LazyImage({ src, thumbnail, alt, className, onClick }: LazyImageProps) {
+export function LazyImage({
+  src,
+  thumbnail,
+  alt,
+  className,
+  onClick,
+  preferDirectSrc = false,
+  disableInitialLoadDelay = false,
+}: LazyImageProps) {
+  const isConstrainedWebKit = isMemoryConstrainedWebKit();
   const [isIntersecting, setIsIntersecting] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
   const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
   const imgRef = useRef<HTMLDivElement>(null);
   const hasEnteredRef = useRef(false);
+  const shouldUseManagedLoading = !preferDirectSrc;
 
   const { isLoading, error, imageSrc } = useLazyImage({
     src,
     thumbnail,
     alt,
     retryKey,
-    active: isIntersecting,
+    active: shouldUseManagedLoading && isIntersecting,
   });
 
   // Cache successfully loaded image
   useEffect(() => {
+    if (!shouldUseManagedLoading) {
+      return;
+    }
+
     if (imageSrc) {
       setLoadedSrc(imageSrc);
     }
-  }, [imageSrc]);
+  }, [imageSrc, shouldUseManagedLoading]);
 
   // Reset loadedSrc and retryKey when src/thumbnail changes
   useEffect(() => {
     setLoadedSrc(null);
     setRetryKey(0);
     hasEnteredRef.current = false;
-    setIsIntersecting(false);
-  }, [src, thumbnail]);
+    setIsIntersecting(preferDirectSrc);
+  }, [preferDirectSrc, src, thumbnail]);
 
   useEffect(() => {
+    if (!shouldUseManagedLoading) {
+      setIsIntersecting(true);
+      hasEnteredRef.current = true;
+      return;
+    }
+
     let timer: NodeJS.Timeout | null = null;
     const currentElement = imgRef.current;
 
@@ -53,7 +76,7 @@ export function LazyImage({ src, thumbnail, alt, className, onClick }: LazyImage
                 timer = setTimeout(() => {
                   setIsIntersecting(true);
                   hasEnteredRef.current = true;
-                }, 500);
+                }, disableInitialLoadDelay ? 0 : 500);
               }
             } else {
               // Re-entering after leaving — resume immediately
@@ -74,7 +97,7 @@ export function LazyImage({ src, thumbnail, alt, className, onClick }: LazyImage
         });
       },
       {
-        rootMargin: '100px',
+        rootMargin: isConstrainedWebKit ? '0px' : '100px',
         threshold: 0.1,
       }
     );
@@ -90,7 +113,7 @@ export function LazyImage({ src, thumbnail, alt, className, onClick }: LazyImage
         timer = null;
       }
     };
-  }, [src, thumbnail]);
+  }, [disableInitialLoadDelay, isConstrainedWebKit, shouldUseManagedLoading, src, thumbnail]);
 
   // Automatic retry on error
   useEffect(() => {
@@ -108,6 +131,22 @@ export function LazyImage({ src, thumbnail, alt, className, onClick }: LazyImage
 
   // Determine what to render
   const showImage = loadedSrc || imageSrc;
+
+  if (preferDirectSrc) {
+    return (
+      <div
+        ref={imgRef}
+        className="w-full h-full"
+        onClick={onClick}
+      >
+        <img
+          src={src}
+          alt={alt}
+          className={className}
+        />
+      </div>
+    );
+  }
 
   return (
     <div
