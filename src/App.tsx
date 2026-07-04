@@ -75,7 +75,11 @@ function App() {
       const url = next?.src;
       if (url && !prefetchedRef.current.has(url)) {
         prefetchedRef.current.add(url);
-        fetch(url).catch(() => prefetchedRef.current.delete(url));
+        // Consume the body so the response is fully downloaded and stored in
+        // the HTTP cache (Safari/WebKit won't cache an unread fetch body).
+        fetch(url)
+          .then((r) => r.blob())
+          .catch(() => prefetchedRef.current.delete(url));
       }
     }
   }, [currentIndex, displayImages, isSlideshow]);
