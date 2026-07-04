@@ -1,6 +1,8 @@
 // Global queue for thumbnail image requests
 // Controls maximum concurrent execution and enables queue clearing
 
+import { isMemoryConstrainedWebKit } from './device-utils';
+
 export type RequestTask<T> = () => Promise<T>;
 
 interface QueueItem<T> {
@@ -60,4 +62,6 @@ export class RequestQueue {
 }
 
 // Create global queue instance
-export const globalRequestQueue = new RequestQueue(10); // Maximum 10 concurrent requests 
+const DEFAULT_IMAGE_REQUEST_CONCURRENCY = isMemoryConstrainedWebKit() ? 3 : 10;
+
+export const globalRequestQueue = new RequestQueue(DEFAULT_IMAGE_REQUEST_CONCURRENCY);
