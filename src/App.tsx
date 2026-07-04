@@ -2,12 +2,17 @@ import React, { useState, useMemo, useRef, useEffect } from 'react'
 import './App.css'
 import { ChevronLeft, ChevronRight, Play, Pause } from 'lucide-react'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Slider } from '@/components/ui/slider'
 import { usePhotoSetNames } from '@/lib/lazy-image-utils'
-import { useImagesForImageSet } from '@/lib/image-utils'
+import { useImagesForImageSet, seededShuffle } from '@/lib/image-utils'
 import { LazyImage } from './components/lazy-image'
 import { FavoriteButton } from './components/FavoriteButton'
 import { useFavorites, extractPrefix } from './lib/favorites-utils'
 import { globalRequestQueue } from './lib/RequestQueue'
+
+// Slideshow interval steps (ms); default is the centered value.
+const INTERVAL_STEPS = [1000, 3000, 5000, 7000, 9000];
+const DEFAULT_INTERVAL_INDEX = 2;
 
 function App() {
   const { setNames, loading: setsLoading, error: setsError } = usePhotoSetNames();
@@ -17,31 +22,63 @@ function App() {
   const [isSlideshow, setIsSlideshow] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
   const [sortMode, setSortMode] = useState<'author' | 'random'>('author');
+  const [shuffleSeed, setShuffleSeed] = useState(0);
+  const [intervalIndex, setIntervalIndex] = useState(DEFAULT_INTERVAL_INDEX);
 
   const currentSetName = activeTab.startsWith('__')
     ? activeTab
     : setNames[parseInt(activeTab)] || '';
 
-  const effectiveSortMode = activeTab === '__favorites__' ? sortMode : 'author';
-  const { images, loading: imagesLoading, error: imagesError, hasMore, loadMore } = useImagesForImageSet(currentSetName, refreshKey, effectiveSortMode);
+  const isVirtualSet = currentSetName.startsWith('__');
+  // Virtual sets (favorites/oldfav) shuffle in the backend via seeded PRNG;
+  // regular sets load in natural order and are shuffled client-side below.
+  const hookSortMode = isVirtualSet ? sortMode : 'author';
+  const { images, loading: imagesLoading, error: imagesError, hasMore, loadMore } = useImagesForImageSet(currentSetName, refreshKey, hookSortMode);
 
-  const displayImages = images;
+  const displayImages = useMemo(() => {
+    if (sortMode === 'random' && !isVirtualSet) {
+      return seededShuffle(images, shuffleSeed);
+    }
+    return images;
+  }, [images, sortMode, isVirtualSet, shuffleSeed]);
+
+  const prefetchedRef = useRef<Set<string>>(new Set());
 
   // Reset image index and slideshow when set changes
   React.useEffect(() => {
     globalRequestQueue.setSetKey();
+    prefetchedRef.current.clear();
     setIsPlaying(false);
     setCurrentIndex(0);
   }, [currentSetName]);
+
+  // Reset index when the ordering changes (sort toggle / reshuffle)
+  React.useEffect(() => {
+    setCurrentIndex(0);
+  }, [sortMode, shuffleSeed]);
 
   // Slideshow timer
   React.useEffect(() => {
     if (!isPlaying || displayImages.length === 0) return;
     const interval = window.setInterval(() => {
       setCurrentIndex((prevIndex) => (prevIndex + 1) % displayImages.length);
-    }, 5000);
+    }, INTERVAL_STEPS[intervalIndex]);
     return () => clearInterval(interval);
-  }, [isPlaying, displayImages.length]);
+  }, [isPlaying, displayImages.length, intervalIndex]);
+
+  // Background-prefetch the next 1-2 images so the browser HTTP cache is warm
+  // by the time useLazyImage fetches the same URL when the slide advances.
+  React.useEffect(() => {
+    if (!isSlideshow || displayImages.length === 0) return;
+    for (let step = 1; step <= 2; step++) {
+      const next = displayImages[(currentIndex + step) % displayImages.length];
+      const url = next?.src;
+      if (url && !prefetchedRef.current.has(url)) {
+        prefetchedRef.current.add(url);
+        fetch(url).catch(() => prefetchedRef.current.delete(url));
+      }
+    }
+  }, [currentIndex, displayImages, isSlideshow]);
 
   const gridRef = useRef<HTMLDivElement>(null);
   const loadMoreRef = useRef(loadMore);
@@ -138,22 +175,23 @@ function App() {
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold">Photo Frame</h1>
             <div className="flex gap-2 items-center">
-              {activeTab === '__favorites__' && (
-                <div className="flex gap-1 mr-4">
-                  <button
-                    onClick={() => setSortMode('author')}
-                    className={`px-3 py-1 text-sm rounded transition-colors ${sortMode === 'author' ? 'bg-blue-600' : 'bg-gray-600 hover:bg-gray-500'}`}
-                  >
-                    By Author
-                  </button>
-                  <button
-                    onClick={() => setSortMode('random')}
-                    className={`px-3 py-1 text-sm rounded transition-colors ${sortMode === 'random' ? 'bg-blue-600' : 'bg-gray-600 hover:bg-gray-500'}`}
-                  >
-                    Random
-                  </button>
-                </div>
-              )}
+              <div className="flex gap-1 mr-4">
+                <button
+                  onClick={() => setSortMode('author')}
+                  className={`px-3 py-1 text-sm rounded transition-colors ${sortMode === 'author' ? 'bg-blue-600' : 'bg-gray-600 hover:bg-gray-500'}`}
+                >
+                  By Author
+                </button>
+                <button
+                  onClick={() => {
+                    setSortMode('random');
+                    setShuffleSeed(Math.floor(Math.random() * 2147483647));
+                  }}
+                  className={`px-3 py-1 text-sm rounded transition-colors ${sortMode === 'random' ? 'bg-blue-600' : 'bg-gray-600 hover:bg-gray-500'}`}
+                >
+                  Random
+                </button>
+              </div>
               <button
                 onClick={toggleSlideshow}
                 className="px-4 py-2 bg-blue-600 rounded hover:bg-blue-700 transition-colors"
@@ -246,6 +284,20 @@ function App() {
               >
                 <ChevronRight size={24} />
               </button>
+              {/* Slideshow interval slider - subtle, bottom-center */}
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3 px-4 py-2 rounded-full bg-black/30 backdrop-blur-sm opacity-50 hover:opacity-100 transition-opacity">
+                <Slider
+                  min={0}
+                  max={INTERVAL_STEPS.length - 1}
+                  step={1}
+                  value={[intervalIndex]}
+                  onValueChange={([v]) => setIntervalIndex(v)}
+                  className="w-48"
+                />
+                <span className="text-xs text-gray-300 tabular-nums w-6 text-right">
+                  {INTERVAL_STEPS[intervalIndex] / 1000}s
+                </span>
+              </div>
             </>
           ) : (
             <p className="text-xl">No images found in this set.</p>
